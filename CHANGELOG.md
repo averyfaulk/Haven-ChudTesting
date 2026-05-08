@@ -11,6 +11,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.15.2] — 2026-05-08
+
+Bug fixes for the media gallery, personas, and thread panel.
+
+### Fixed
+- **Thread panel hidden behind message bar (#5354).** Thread dock z-index raised above the composer bar so it's no longer clipped at wider viewport widths.
+- **Persona autocomplete shown in DMs and threads (#5353).** The `::` persona autocomplete no longer appears in DM messages or thread replies, where personas aren't supported.
+- **Persona tooltip shows raw i18n key (#5353).** The "Sent via …" badge tooltip was displaying `app.messages.via_persona` (missing locale key) instead of the actual real username.
+- **Double ✕ button in media gallery (#5352).** The auto-inject expand/close control group is now skipped for the gallery modal, which already has its own close button.
+- **Media gallery shown in DMs (#5352).** The gallery toolbar button is now hidden when viewing a DM channel, where it would show "no media available".
+- **OpenSSL not recognized when starting Haven (#5351).** Fixed a cmd.exe delayed-expansion bug where `%OPENSSL_CMD%` expanded to empty inside the outer compound block even though OpenSSL had been found; the cert-generation command is now called via a subroutine so the variable expands at execution time.
+
+---
+
 ## [3.15.1] — 2026-05-08
 
 Polish pass on 3.15.0's Channel Media Gallery and Personas.

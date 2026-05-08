@@ -2042,10 +2042,12 @@ _setupModalExpand() {
   // divs, settings headers, etc) without depending on h3 internal flex.
   const _injectModalControls = () => {
     document.querySelectorAll('.modal').forEach(modal => {
-      // Skip promo/centered popups — they're not regular modals
+      // Skip promo/centered popups and the media gallery (which has its own
+      // header close button) — they're not regular modals (#5352)
       if (modal.classList.contains('android-beta-promo') ||
           modal.classList.contains('desktop-promo') ||
-          modal.classList.contains('donors-modal-box')) return;
+          modal.classList.contains('donors-modal-box') ||
+          modal.classList.contains('media-gallery-modal')) return;
       // Idempotent — skip already-injected
       if (modal.dataset.modalControlsInjected === '1') return;
       modal.dataset.modalControlsInjected = '1';

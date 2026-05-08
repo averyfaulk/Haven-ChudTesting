@@ -1728,7 +1728,7 @@ _setupUI() {
     this._checkChannelTrigger(dmPipInput);
     this._checkEmojiTrigger(dmPipInput);
     this._checkSlashTrigger(dmPipInput);
-    this._checkPersonaTrigger(dmPipInput);
+    // Personas are not supported in DMs — omit _checkPersonaTrigger here
   });
 
   // Paste images / files into the DM PiP input — queues images for preview
@@ -1892,7 +1892,7 @@ _setupUI() {
       this._checkChannelTrigger(threadInput);
       this._checkEmojiTrigger(threadInput);
       this._checkSlashTrigger(threadInput);
-      this._checkPersonaTrigger(threadInput);
+      // Personas are not supported in threads — omit _checkPersonaTrigger here
     });
     // Paste images / files into the thread input — upload then send as thread message
     threadInput.addEventListener('paste', (e) => {

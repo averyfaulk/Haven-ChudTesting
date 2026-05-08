@@ -80,7 +80,7 @@ async switchChannel(code) {
   document.getElementById('search-toggle-btn').style.display = '';
   document.getElementById('pinned-toggle-btn').style.display = '';
   const _galleryBtn = document.getElementById('gallery-toggle-btn');
-  if (_galleryBtn) _galleryBtn.style.display = '';
+  if (_galleryBtn) _galleryBtn.style.display = isDm ? 'none' : '';
   // Auto-close pinned panel on channel switch so stale pins don't linger
   document.getElementById('pinned-panel').style.display = 'none';
 

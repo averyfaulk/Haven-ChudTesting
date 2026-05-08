@@ -155,14 +155,11 @@ if /I "%FORCE_HTTP%"=="true" (
         echo      To enable HTTPS, install OpenSSL or add it to your PATH.
         echo      Common install location: C:\Program Files\OpenSSL-Win64\bin
     ) else (
-        :: SAN (Subject Alternative Name) is required by modern browsers for HTTPS
-        "%OPENSSL_CMD%" req -x509 -newkey rsa:2048 -keyout "%HAVEN_DATA%\certs\key.pem" -out "%HAVEN_DATA%\certs\cert.pem" -days 3650 -nodes -subj "/CN=Haven" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:%LOCAL_IP%"
-        if exist "%HAVEN_DATA%\certs\cert.pem" (
-            echo  [OK] SSL certificate generated in %HAVEN_DATA%\certs
-        ) else (
-            echo  [!] SSL certificate generation failed.
-            echo      Haven will run in HTTP mode. See README for details.
-        )
+        :: Use a subroutine so %OPENSSL_CMD% expands at call time, not at
+        :: parse time of this compound block (classic cmd.exe delayed-expansion
+        :: bug -- variable set inside a nested block reads as empty when
+        :: referenced inside the same outer if/else). (#5351)
+        call :_gen_ssl_cert
     )
     echo.
 )
@@ -245,3 +242,18 @@ echo.
 :KEEPALIVE
 timeout /t 3600 /nobreak >nul
 goto KEEPALIVE
+
+:: ── Subroutine: generate SSL certificate ─────────────────────────────────
+:: Called via `call :_gen_ssl_cert` so that %OPENSSL_CMD% and %LOCAL_IP%
+:: are expanded at execution time (not at parse time of the enclosing
+:: compound block, where they would still be empty). (#5351)
+:_gen_ssl_cert
+:: SAN (Subject Alternative Name) is required by modern browsers for HTTPS
+"%OPENSSL_CMD%" req -x509 -newkey rsa:2048 -keyout "%HAVEN_DATA%\certs\key.pem" -out "%HAVEN_DATA%\certs\cert.pem" -days 3650 -nodes -subj "/CN=Haven" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:%LOCAL_IP%"
+if exist "%HAVEN_DATA%\certs\cert.pem" (
+    echo  [OK] SSL certificate generated in %HAVEN_DATA%\certs
+) else (
+    echo  [!] SSL certificate generation failed.
+    echo      Haven will run in HTTP mode. See README for details.
+)
+goto :eof

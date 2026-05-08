@@ -124,7 +124,8 @@
       "unprotect_btn": "Unprotect",
       "unknown_user": "Unknown",
       "placeholder": "Type a message...",
-      "placeholder_short": "Message..."
+      "placeholder_short": "Message...",
+      "via_persona": "Sent via {{name}}"
     },
     "input_bar": {
       "emoji_btn": "Emoji",

@@ -7686,9 +7686,9 @@ html:not([data-toolbaricons="emoji"]):not([data-toolbaricons="color"]) .tb-icon-
   border-left: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
-  /* Must sit above .input-actions-box (z:1001) so the docked thread panel
-     isn't covered by the channel's message input action buttons. (#5289) */
-  z-index: 1010;
+  /* Must sit above .message-input-area (z:99995) so the docked thread panel
+     isn't hidden behind the composer bar at wider viewport widths. (#5354) */
+  z-index: 99996;
   box-shadow: -4px 0 24px rgba(0,0,0,0.25);
   animation: thread-slide-in 0.2s ease-out;
 }
