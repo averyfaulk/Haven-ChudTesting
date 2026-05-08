@@ -23,8 +23,10 @@ Polish pass on 3.15.0's Channel Media Gallery and Personas.
 
 ### Fixed
 - **Message grouping bug when sending consecutive messages from different personas (#5349).** Subsequent messages from a different persona were being attributed to the first persona's avatar header because the "compact" grouping check only compared `user_id`. Grouping now also compares `persona_id`, and the message's persona id is persisted in the DOM so newly appended messages correctly start a new group.
+- **Persona names with spaces not matching (#5349).** The server used a regex that excluded whitespace when extracting the persona name from the `::` prefix, so a persona called `Persona 1` would be parsed as `Persona` and fail the DB lookup, leaving the raw text unsent as a persona. Replaced with a loop over the user's own personas (sorted longest-name-first), doing a case-insensitive startsWith check. Handles any name regardless of spaces.
 - **Image lightbox appearing underneath the media gallery modal (#5350).** Lightbox `z-index` bumped from `10000` to `100010` so it sits above modal overlays (`z-index: 100001`).
 - **Top-bar header buttons (search, pinned, gallery, copy, etc.) now follow the existing "Colorful Emoji" / "Monochrome" toolbar setting in Appearance.** Previously these were monochrome-only regardless of the user's choice.
+- **Burn-after-read channel resolved from PiP container instead of currentChannel.** Sending a burn-after-read message from the DM PiP was incorrectly using `currentChannel` (the channel visible in the main view) rather than the PiP's channel code.
 
 ### Security / verification
 - Verified `get-channel-media` already enforces channel membership (`SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?`) with admin override, so users only see media from channels they're in.
@@ -36,7 +38,7 @@ Polish pass on 3.15.0's Channel Media Gallery and Personas.
 
 ### Added
 - **Channel Media Gallery (#5350).** New 🖼 button in the channel header opens a near full-screen modal with five tabs: Photos, Videos, Audio, Files, and Links. Photos and videos render as a clickable album-style grid (photos open in the lightbox, videos jump to the source message). Audio, files, and links use a list layout with inline players, download links, and a jump-to-message button. Each entry shows the date it was posted. Tab counts update on open. Powered by a new `get-channel-media` socket handler that scans the channel for upload paths and external links.
-- **Personas (#86, #5349).** Profile settings now have a "👥 Personas" section where you can create up to 25 named alter-egos with their own name and avatar, then send messages as one of them by typing `Name: your message` in chat (case-insensitive, the prefix is stripped before send). Each persona-sent message is stored with both the persona identity AND your real account ID, so messages are visibly tagged with a small `persona` badge (hover to see the real sender) and remain fully moderatable. Persona avatars upload via the same magic-byte-validated path as user avatars (2 MB cap). Persona names cannot collide with existing usernames or display names to prevent impersonation.
+- **Personas (#86, #5349).** Profile settings now have a "👥 Personas" section where you can create up to 25 named alter-egos with their own name and avatar, then send messages as one of them by typing `::Name your message` in chat (case-insensitive, the prefix is stripped before send). Each persona-sent message is stored with both the persona identity AND your real account ID, so messages are visibly tagged with a small `persona` badge (hover to see the real sender) and remain fully moderatable. Persona avatars upload via the same magic-byte-validated path as user avatars (2 MB cap). Persona names cannot collide with existing usernames or display names to prevent impersonation.
 
 ---
 
