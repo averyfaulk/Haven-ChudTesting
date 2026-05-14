@@ -38,7 +38,7 @@ module.exports = function register(socket, ctx) {
     if (name.length > 50) {
       return socket.emit('error-msg', 'Channel name too long (max 50)');
     }
-    if (!/^[\w\s\-!?.,'\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/iu.test(name)) {
+    if (!/^[\w\s\-!?.,'\p{L}\p{M}\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/u.test(name)) {
       return socket.emit('error-msg', 'Channel name contains invalid characters');
     }
 
@@ -135,7 +135,7 @@ module.exports = function register(socket, ctx) {
     const name = typeof data.name === 'string' ? data.name.trim() : '';
     if (!name || name.length === 0) return socket.emit('error-msg', 'Channel name required');
     if (name.length > 50) return socket.emit('error-msg', 'Channel name too long (max 50)');
-    if (!/^[\w\s\-!?.,'\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/iu.test(name)) {
+    if (!/^[\w\s\-!?.,'\p{L}\p{M}\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/u.test(name)) {
       return socket.emit('error-msg', 'Channel name contains invalid characters');
     }
 
@@ -484,7 +484,7 @@ module.exports = function register(socket, ctx) {
     if (!name || name.length === 0 || name.length > 50) {
       return socket.emit('error-msg', 'Channel name must be 1-50 characters');
     }
-    if (!/^[\w\s\-!?.,'\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/iu.test(name)) {
+    if (!/^[\w\s\-!?.,'\p{L}\p{M}\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/u.test(name)) {
       return socket.emit('error-msg', 'Channel name contains invalid characters');
     }
 
@@ -527,7 +527,7 @@ module.exports = function register(socket, ctx) {
     if (!name || name.length === 0 || name.length > 50) {
       return socket.emit('error-msg', 'Sub-channel name must be 1-50 characters');
     }
-    if (!/^[\w\s\-!?.,'\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/iu.test(name)) {
+    if (!/^[\w\s\-!?.,'\p{L}\p{M}\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/u.test(name)) {
       return socket.emit('error-msg', 'Sub-channel name contains invalid characters');
     }
 
