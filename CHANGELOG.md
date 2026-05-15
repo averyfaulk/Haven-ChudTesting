@@ -11,6 +11,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.16.7] — 2026-05-15
+
+### Fixed
+- **Images attached alongside a persona message now send as the persona.** Previously, when a user typed `::PersonaName message` with an image queued, the text arrived attributed to the persona but the image was a separate bare message from the real account. The image send now inherits the persona prefix, so both the text and any bundled images show the same persona.
+- **Persona badge showed `??` instead of an icon.** The `🎭` persona label badge was rendering with a literal `??` placeholder (a forgotten CSS `::before` value) prepended to the word "persona". It now shows a 🎭 icon.
+
+---
+
 ## [3.16.6] — 2026-05-15
 
 ### Added

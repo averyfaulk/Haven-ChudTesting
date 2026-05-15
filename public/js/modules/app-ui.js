@@ -5273,7 +5273,7 @@ _uploadWithProgress(url, formData) {
   });
 },
 
-async _uploadImage(file, targetCode, bundled = false) {
+async _uploadImage(file, targetCode, bundled = false, personaPrefix = '') {
   if (!this.currentChannel && !targetCode) return;
   // Capture the target channel NOW (before any await) so a mid-upload channel
   // switch doesn't send the image to the wrong channel.
@@ -5312,8 +5312,9 @@ async _uploadImage(file, targetCode, bundled = false) {
       });
       this.notifications.play('sent');
     } catch (err) {
-      console.warn('[E2E] Image encryption failed:', err);
-      this._showToast(t('toasts.encrypted_image_failed'), 'error');
+      console.error('[E2E] Image encryption failed:', err);
+      const detail = err?.message ? ` — ${err.message}` : '';
+      this._showToast(`${t('toasts.encrypted_image_failed')}${detail}`, 'error');
     }
     return;
   }
@@ -5331,10 +5332,11 @@ async _uploadImage(file, targetCode, bundled = false) {
       data = await this._uploadWithProgress('/api/upload', formData);
     }
 
-    // Send the image URL as a message to the channel that was active at upload time
+    // Send the image URL as a message to the channel that was active at upload time.
+    // Prepend persona prefix if this image is bundled with a persona text message.
     this.socket.emit('send-message', {
       code: targetChannel,
-      content: data.url,
+      content: personaPrefix + data.url,
       isImage: true,
       ...(bundled && { bundled: true })
     });

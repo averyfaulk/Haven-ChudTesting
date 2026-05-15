@@ -213,9 +213,24 @@ async _sendMessage() {
   }
 
   // Upload queued images — mark as bundled when text was also sent so
-  // the server knows not to apply a second slow-mode tick for them (#5342)
+  // the server knows not to apply a second slow-mode tick for them (#5342).
+  // If the text message used a persona prefix (::Name ...), pass it along so
+  // the bundled images are attributed to the same persona.
   if (hasImages) {
-    this._flushImageQueue(!!content);
+    let personaPrefix = '';
+    if (content && content.startsWith('::') && Array.isArray(this._personas)) {
+      const lower = content.toLowerCase();
+      const sorted = [...this._personas].sort((a, b) => b.name.length - a.name.length);
+      for (const p of sorted) {
+        const base = '::' + p.name.toLowerCase();
+        if (lower.startsWith(base + ' ') || lower.startsWith(base + ': ') ||
+            (lower.startsWith(base + ':') && content.length > base.length + 1)) {
+          personaPrefix = '::' + p.name + ' ';
+          break;
+        }
+      }
+    }
+    this._flushImageQueue(!!content, personaPrefix);
   }
 },
 
