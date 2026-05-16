@@ -11,6 +11,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.16.8] — 2026-05-15
+
+### Fixed
+- **Phantom unread badge on current channel after returning from background.** When the app was backgrounded (alt-tabbed, minimised, or the BrowserView was hidden in Desktop's multi-server switcher) while the user was already at the bottom of a channel, incoming messages bumped the sidebar unread badge even though the user was actively reading that channel. The badge-clearing code only fires when a *new* message arrives while the page is visible, so if no further messages arrived the stale badge was stuck permanently. The fix clears the badge (and syncs `mark-read` to the server) immediately when the window/tab regains visibility and the user is still coupled to the bottom of the current channel.
+
+---
+
 ## [3.16.7] — 2026-05-15
 
 ### Fixed

@@ -2640,6 +2640,28 @@ _resyncDesktopBadgeOnFocus() {
   this._desktopBadgeFocusBound = true;
   const resync = () => {
     if (document.hidden) return;
+    // Clear stale unread badge on the channel the user is actively viewing.
+    // When the page is hidden (backgrounded BrowserView, alt-tab, minimise)
+    // incoming messages bump unreadCounts even though the user was already
+    // at the bottom — because isActivelyViewing = false in the new-message
+    // handler.  The badge-clearing path inside that handler only fires when
+    // a *new* message arrives while visible, so if no message arrives after
+    // the user returns the "N unread" badge is stuck until someone else
+    // types.  Fix: as soon as the window becomes visible again, if the user
+    // is still coupled to the bottom of the current channel, treat those
+    // messages as read immediately. (#phantom-badge-on-focus-return)
+    if (this.currentChannel && this._coupledToBottom && this.unreadCounts?.[this.currentChannel]) {
+      const code = this.currentChannel;
+      const ch = this.channels?.find(c => c.code === code);
+      const latestId = ch?.latestMessageId || this._newestMsgId;
+      this.unreadCounts[code] = 0;
+      try { this._updateBadge?.(code); } catch {}
+      try { this._updateDmSectionBadge?.(); } catch {}
+      try { this._updateTabTitle?.(); } catch {}
+      if (latestId) {
+        try { this.socket.emit('mark-read', { code, messageId: latestId }); } catch {}
+      }
+    }
     try { this._updateDesktopBadge(); } catch {}
   };
   window.addEventListener('focus', resync);
