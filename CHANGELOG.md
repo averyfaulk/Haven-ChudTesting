@@ -13,7 +13,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ## [Unreleased]
 
+---
+
+## [3.16.15] — 2026-05-20
+
 ### Fixed
+- **Version display regression from v3.16.14 (#5369).** The v3.16.14 release tag was created without bumping `package.json`, so servers running v3.16.14 reported version v3.16.13 via `GET /api/version` and the `session-info` socket event. Corrected in this release.
 - **Voice chat: ACTUAL ROOT CAUSE of the recurring self-vanish bug (#5347) — channel code rotation desync.** The new server-side `[VoiceDiag]` logs from the previous patch lit it up immediately: every time the bug hit, the server's auto-rotation timer had just rotated the channel's code (e.g. `95aa65d9 → aaeb3979`), but the voice clients still in the channel kept emitting `voice-rejoin` / `request-voice-users` / `voice-mute-state` with the OLD code. The server couldn't find the old code in the DB (because it was just updated), and the existing `channel-code-rotated` client handler only migrated `this.currentChannel` — it never touched `this.voice.currentChannel`. So every voice client was stuck holding a dead reference, the watchdog/self-heal loop ran forever, peers couldn't connect, and "everyone has to leave and rejoin to recover" was the only escape.
   - **Client now migrates voice-side state on rotation** (`this.voice.currentChannel` and `this.voice._softLeftChannel`), not just the text-channel state.
   - **Server now migrates the voice socket-room AND broadcasts the rotation event to the voice room too**, so users in voice but not viewing the text channel still receive the update.

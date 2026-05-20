@@ -1415,12 +1415,12 @@
       </div>
 
       <div class="download-card fade-in">
-        <h2>&#x2B21; Haven Server &mdash; v3.16.14</h2>
+        <h2>&#x2B21; Haven Server &mdash; v3.16.15</h2>
         <p class="download-version">Latest stable release &middot; Windows, macOS &amp; Linux &middot; ~5 MB</p>
 
         <div class="download-btn-group">
-          <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.16.14.zip" class="btn btn-primary download-main">
-            <span class="icon">&#x2B07;</span> Download v3.16.14 (.zip)
+          <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.16.15.zip" class="btn btn-primary download-main">
+            <span class="icon">&#x2B07;</span> Download v3.16.15 (.zip)
           </a>
           <div class="download-alt-links">
             <a href="https://github.com/ancsemi/Haven" target="_blank">&#9965; View on GitHub</a>
@@ -1437,7 +1437,11 @@
           <div class="version-list">
             <div class="version-list-inner">
               <div class="version-item">
-                <div><span class="v-name">v3.16.14</span><span class="v-tag latest">Latest</span> &mdash; Voice chat: server-side 4 s grace period before evicting a disconnected user so transient blips never broadcast <code>voice-user-left</code> to peers; fast-path rejoin that skips RTCPeerConnection renegotiation when the socket reconnects within the window; client-side roster watchdog that auto-fires <code>voice-rejoin</code> if we&rsquo;ve silently dropped off the server list &mdash; fixes the recurring self-vanish glitch (#5347)</div>
+                <div><span class="v-name">v3.16.15</span><span class="v-tag latest">Latest</span> &mdash; Voice chat: actual root cause of the recurring self-vanish glitch (#5347) fixed &mdash; channel code rotation desync caused voice clients to hold stale codes after server rotation, breaking reconnects until manual rejoin; null audioCtx crash on voice leave patched; version display regression from v3.16.14 corrected (servers reported v3.16.13 despite running v3.16.14) (#5369)</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.16.15.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.16.14</span> &mdash; Voice chat: server-side 4 s grace period before evicting a disconnected user so transient blips never broadcast <code>voice-user-left</code> to peers; fast-path rejoin that skips RTCPeerConnection renegotiation when the socket reconnects within the window; client-side roster watchdog that auto-fires <code>voice-rejoin</code> if we&rsquo;ve silently dropped off the server list &mdash; fixes the recurring self-vanish glitch (#5347)</div>
                 <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.16.14.zip">Download &rarr;</a>
               </div>
               <div class="version-item">
