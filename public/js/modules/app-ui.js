@@ -4420,10 +4420,9 @@ _updateServerBadgeDots(payload) {
   };
   const normalized = {};
   for (const [k, v] of Object.entries(badges)) normalized[norm(k)] = v;
-  // Track which normalized URLs ended up attached to a real sidebar icon so
-  // we can surface a fallback for the rest. The current view's own origin
-  // never has an icon in its own sidebar (filtered out as "self"), so treat
-  // it as covered to avoid a phantom self-orphan.
+  // Track which normalized URLs are attached to a real sidebar icon. The
+  // current view's own origin never has an icon in its own sidebar (filtered
+  // out as "self"), so treat it as covered.
   const covered = new Set();
   try { covered.add(norm(window.location.origin)); } catch {}
   document.querySelectorAll('#server-list .server-icon.remote').forEach(el => {
@@ -4435,66 +4434,44 @@ _updateServerBadgeDots(payload) {
     const count = normalized[nUrl] || normalized[url] || badges[url] || 0;
     dot.classList.toggle('active', count > 0);
   });
-  // Surface any unread URL that has no matching sidebar icon as an
-  // "unread elsewhere" fallback chip at the bottom of the server list.
-  // This is the fix for the long-standing taskbar-lit / sidebar-blank
-  // desync: per-server sidebars are curated, so a background server's
-  // badge had nowhere to land. (#5337)
-  this._renderOrphanUnreads(normalized, names || {}, covered);
-  // Report the URLs we can actually surface to the user back to main.
-  // Without this, a background BrowserView for a server the user never
-  // added on this origin would light the taskbar with no visible dot
-  // anywhere — a "phantom" badge. Main filters the taskbar to URLs that
-  // at least one renderer can display. (#5269)
-  this._reportKnownServerUrls();
-},
-
-// Render small fallback icons in the sidebar for unread servers that
-// don't appear in this view's curated server list. Without this, badges
-// from background BrowserViews silently lit the taskbar with no in-app
-// indicator of which server was the source — user had to alt-click
-// through every server to find the noisy one. (#5337)
-_renderOrphanUnreads(normalizedBadges, nameMap, covered) {
-  const list = document.getElementById('server-list');
-  if (!list) return;
-  // Clear any previous orphan chips so removed unreads disappear.
-  list.querySelectorAll('.server-icon.orphan-unread').forEach(el => el.remove());
-  const norm = (raw) => {
-    let v = String(raw || '').trim();
-    if (!v) return '';
-    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
-    try {
-      const u = new URL(v);
-      u.hash = ''; u.search = '';
-      let p = (u.pathname || '/').replace(/\/+$/, '') || '/';
-      p = p.replace(/\/app(?:\.html)?$/i, '') || '/';
-      p = p.replace(/\/+$/, '') || '/';
-      return p === '/' ? u.origin : u.origin + p;
-    } catch { return v.replace(/\/+$/, ''); }
-  };
-  for (const [url, hasUnread] of Object.entries(normalizedBadges)) {
-    if (!hasUnread) continue;
-    const nUrl = norm(url);
-    if (covered.has(nUrl) || covered.has(url)) continue;
-    const name = nameMap[nUrl] || nameMap[url] || (() => {
-      try { return new URL(nUrl).hostname; } catch { return nUrl; }
-    })();
-    const initial = String(name).charAt(0).toUpperCase() || '?';
-    const el = document.createElement('div');
-    el.className = 'server-icon remote orphan-unread';
-    el.dataset.url = nUrl;
-    el.title = t('servers.unread_elsewhere', { name }) || `Unread message from ${name} — click to switch`;
-    el.innerHTML = `
-      <span class="server-icon-text">${this._escapeHtml(initial)}</span>
-      <span class="server-unread-dot active"></span>
-    `;
-    el.addEventListener('click', () => {
-      if (window.havenDesktop?.switchServer) {
-        window.havenDesktop.switchServer(nUrl);
+  // Auto-recover for the long-standing taskbar-lit / sidebar-blank desync:
+  // when a background server fires a badge but no icon exists for it in
+  // this view's curated sidebar (per-view localStorage, alias URLs, etc),
+  // add it as a real sidebar icon using serverManager.add(). The next
+  // _renderServerBar pass will paint a proper icon (real name from the
+  // broadcast name map, real avatar fetched from /api/health, real click-
+  // to-switch behavior) and re-apply the unread dot via _lastServerBadges.
+  // (#5337)
+  let autoAdded = false;
+  this._autoAddedUnreadUrls = this._autoAddedUnreadUrls || new Set();
+  if (this.serverManager && typeof this.serverManager.add === 'function') {
+    for (const [nUrl, hasUnread] of Object.entries(normalized)) {
+      if (!hasUnread) continue;
+      if (covered.has(nUrl)) continue;
+      // Per-session guard so a server the user actively removes mid-session
+      // doesn't ping-pong back in on every badge tick.
+      if (this._autoAddedUnreadUrls.has(nUrl)) continue;
+      const name = (names && (names[nUrl] || names[nUrl + '/'])) || (() => {
+        try { return new URL(nUrl).hostname; } catch { return nUrl; }
+      })();
+      // userInitiated:true clears any stale "removed" flag — surfacing an
+      // unread badge counts as the user implicitly wanting that server back.
+      if (this.serverManager.add(name, nUrl, null, { userInitiated: true })) {
+        this._autoAddedUnreadUrls.add(nUrl);
+        autoAdded = true;
       }
-    });
-    list.appendChild(el);
+    }
   }
+  if (autoAdded) {
+    // _renderServerBar re-calls _updateServerBadgeDots(this._lastServerBadges)
+    // at the end of its work, so the new icon gets its dot in the next pass.
+    this._renderServerBar();
+    return;
+  }
+  // Report the URLs we can actually surface back to main so taskbar
+  // recomputation can drop phantom unreads from background-preloaded
+  // servers no view can display. (#5269)
+  this._reportKnownServerUrls();
 },
 
 // Drag-and-drop reordering of remote server icons in the sidebar.

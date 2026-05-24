@@ -1609,8 +1609,7 @@
     "no_servers": "No servers added yet",
     "open_tab": "Open in new tab",
     "edit": "Edit server",
-    "remove": "Remove",
-    "unread_elsewhere": "Unread message from {{name}} — click to switch"
+    "remove": "Remove"
   },
   "common": {
     "copy": "Copy",
