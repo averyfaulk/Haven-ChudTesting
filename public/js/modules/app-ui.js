@@ -4384,11 +4384,21 @@ _renderManageServersList() {
   });
 },
 
-_updateServerBadgeDots(badges) {
-  if (!badges) return;
+_updateServerBadgeDots(payload) {
+  if (!payload) return;
+  // Payload shape evolved: old code sent `{ url: bool }` directly, new code
+  // sends `{ badges: { url: bool }, names: { url: 'Name' } }`. Accept both
+  // so a stale renderer talking to a fresh main (or vice-versa) doesn't
+  // wipe its dots. (#5337)
+  let badges, names;
+  if (payload && typeof payload === 'object' && payload.badges && typeof payload.badges === 'object') {
+    badges = payload.badges; names = payload.names || {};
+  } else {
+    badges = payload; names = {};
+  }
   // Cache so _renderServerBar can reapply dots immediately after a re-render
   // instead of waiting for the next haven-server-badges event. (#5300)
-  this._lastServerBadges = badges;
+  this._lastServerBadges = { badges, names };
   // Main process keys serverBadgeState by normalized URL (no trailing slash,
   // no /app or /app.html, no query/hash). The DOM stores the raw user-entered
   // URL, so a direct lookup misses for any server that doesn't already happen
@@ -4410,19 +4420,81 @@ _updateServerBadgeDots(badges) {
   };
   const normalized = {};
   for (const [k, v] of Object.entries(badges)) normalized[norm(k)] = v;
+  // Track which normalized URLs ended up attached to a real sidebar icon so
+  // we can surface a fallback for the rest. The current view's own origin
+  // never has an icon in its own sidebar (filtered out as "self"), so treat
+  // it as covered to avoid a phantom self-orphan.
+  const covered = new Set();
+  try { covered.add(norm(window.location.origin)); } catch {}
   document.querySelectorAll('#server-list .server-icon.remote').forEach(el => {
     const url = el.dataset.url;
     const dot = el.querySelector('.server-unread-dot');
     if (!dot) return;
-    const count = normalized[norm(url)] || normalized[url] || badges[url] || 0;
+    const nUrl = norm(url);
+    covered.add(nUrl);
+    const count = normalized[nUrl] || normalized[url] || badges[url] || 0;
     dot.classList.toggle('active', count > 0);
   });
+  // Surface any unread URL that has no matching sidebar icon as an
+  // "unread elsewhere" fallback chip at the bottom of the server list.
+  // This is the fix for the long-standing taskbar-lit / sidebar-blank
+  // desync: per-server sidebars are curated, so a background server's
+  // badge had nowhere to land. (#5337)
+  this._renderOrphanUnreads(normalized, names || {}, covered);
   // Report the URLs we can actually surface to the user back to main.
   // Without this, a background BrowserView for a server the user never
   // added on this origin would light the taskbar with no visible dot
   // anywhere — a "phantom" badge. Main filters the taskbar to URLs that
   // at least one renderer can display. (#5269)
   this._reportKnownServerUrls();
+},
+
+// Render small fallback icons in the sidebar for unread servers that
+// don't appear in this view's curated server list. Without this, badges
+// from background BrowserViews silently lit the taskbar with no in-app
+// indicator of which server was the source — user had to alt-click
+// through every server to find the noisy one. (#5337)
+_renderOrphanUnreads(normalizedBadges, nameMap, covered) {
+  const list = document.getElementById('server-list');
+  if (!list) return;
+  // Clear any previous orphan chips so removed unreads disappear.
+  list.querySelectorAll('.server-icon.orphan-unread').forEach(el => el.remove());
+  const norm = (raw) => {
+    let v = String(raw || '').trim();
+    if (!v) return '';
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    try {
+      const u = new URL(v);
+      u.hash = ''; u.search = '';
+      let p = (u.pathname || '/').replace(/\/+$/, '') || '/';
+      p = p.replace(/\/app(?:\.html)?$/i, '') || '/';
+      p = p.replace(/\/+$/, '') || '/';
+      return p === '/' ? u.origin : u.origin + p;
+    } catch { return v.replace(/\/+$/, ''); }
+  };
+  for (const [url, hasUnread] of Object.entries(normalizedBadges)) {
+    if (!hasUnread) continue;
+    const nUrl = norm(url);
+    if (covered.has(nUrl) || covered.has(url)) continue;
+    const name = nameMap[nUrl] || nameMap[url] || (() => {
+      try { return new URL(nUrl).hostname; } catch { return nUrl; }
+    })();
+    const initial = String(name).charAt(0).toUpperCase() || '?';
+    const el = document.createElement('div');
+    el.className = 'server-icon remote orphan-unread';
+    el.dataset.url = nUrl;
+    el.title = t('servers.unread_elsewhere', { name }) || `Unread message from ${name} — click to switch`;
+    el.innerHTML = `
+      <span class="server-icon-text">${this._escapeHtml(initial)}</span>
+      <span class="server-unread-dot active"></span>
+    `;
+    el.addEventListener('click', () => {
+      if (window.havenDesktop?.switchServer) {
+        window.havenDesktop.switchServer(nUrl);
+      }
+    });
+    list.appendChild(el);
+  }
 },
 
 // Drag-and-drop reordering of remote server icons in the sidebar.

@@ -16096,6 +16096,24 @@ ul.chat-list { list-style-type: disc; }
 }
 .server-icon .server-unread-dot.active { display: block; }
 
+/* "Unread elsewhere" fallback chip: rendered at the bottom of the server
+   list when a background server fires a badge but isn't in the active
+   view's curated sidebar (alias URL, manually removed, or never added).
+   Without this, the taskbar would light up with no in-app indicator of
+   the source. Dashed border distinguishes it from real server icons.
+   (#5337 multiserver unread desync) */
+.server-icon.orphan-unread {
+  border: 2px dashed var(--danger, #ed4245);
+  background: var(--bg-secondary, #2b2d31);
+  opacity: 0.92;
+  cursor: pointer;
+}
+.server-icon.orphan-unread:hover { opacity: 1; }
+.server-icon.orphan-unread .server-icon-text {
+  color: var(--text-muted, #b5bac1);
+  font-style: italic;
+}
+
 /* ═══════════════════════════════════════════════════════
    Move Messages (multi-select)
    ═══════════════════════════════════════════════════════ */
