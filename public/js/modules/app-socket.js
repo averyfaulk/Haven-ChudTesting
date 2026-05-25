@@ -177,8 +177,31 @@ _setupSocketListeners() {
   });
   document.addEventListener('visibilitychange', () => {
     this.socket?.emit('visibility-change', { visible: !document.hidden });
+    // Track when we went hidden so we can detect long sleeps on resume
+    // (PC suspend/lock for hours leaves a "zombie" socket that the client
+    // thinks is connected but the server has long since dropped via ping
+    // timeout — the result is empty member lists and no chat history on
+    // wake until you switch channels twice). (#post-sleep-channel-desync)
+    if (document.hidden) {
+      this._hiddenAt = Date.now();
+      return;
+    }
+    const hiddenForMs = this._hiddenAt ? (Date.now() - this._hiddenAt) : 0;
+    this._hiddenAt = null;
     // Mobile fix: when returning to foreground, ensure socket is connected and refresh data
     if (!document.hidden) {
+      // After a long hidden period (>30 s) the socket is almost certainly
+      // a zombie even if .connected reports true — Chromium throttles
+      // background tabs and macOS/Windows suspend network I/O during
+      // sleep. Force a clean reconnect cycle so the 'connect' handler
+      // does the full resync (enter-channel, get-messages, members,
+      // voice users, voice-rejoin) rather than relying on the partial
+      // refresh below.
+      if (hiddenForMs > 30000 && this.socket) {
+        try { this.socket.disconnect(); } catch {}
+        try { this.socket.connect(); } catch {}
+        return;
+      }
       if (this.socket && !this.socket.connected) {
         this.socket.connect();
       }
@@ -208,6 +231,12 @@ _setupSocketListeners() {
       // history before the tab switch, preserve their position by skipping the
       // reset so _renderMessages doesn't yank them to the latest messages.
       if (this.currentChannel && this.socket?.connected) {
+        // (#post-sleep-channel-desync) Re-emit enter-channel so the server
+        // re-adds this socket to its channelUsers map for this code. Without
+        // this, subsequent online-users broadcasts compute the roster from
+        // a stale map and the user sees an empty member list — exactly the
+        // symptom reported after a multi-hour PC sleep.
+        this.socket.emit('enter-channel', { code: this.currentChannel });
         if (this._coupledToBottom) {
           this._oldestMsgId = null;
           this._noMoreHistory = false;
@@ -220,6 +249,10 @@ _setupSocketListeners() {
           this.socket.emit('get-messages', { code: this.currentChannel });
         }
         this.socket.emit('get-channel-members', { code: this.currentChannel });
+        // Pull a fresh online-users + voice roster so the right-side panels
+        // aren't stuck on whatever stale snapshot was rendered before sleep.
+        this.socket.emit('request-online-users', { code: this.currentChannel });
+        this.socket.emit('request-voice-users', { code: this.currentChannel });
       }
       // Re-fetch channels in case list changed while backgrounded
       this.socket?.emit('get-channels');
