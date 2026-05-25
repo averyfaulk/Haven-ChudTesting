@@ -695,9 +695,19 @@ module.exports = function register(socket, ctx) {
     }
     const userId = parseInt(data && data.userId);
     if (!Number.isFinite(userId)) return cb({ error: 'Invalid userId' });
-    const target = db.prepare('SELECT id, username, password_version FROM users WHERE id = ?').get(userId);
+    const target = db.prepare('SELECT id, username, password_version, totp_secret, totp_enabled FROM users WHERE id = ?').get(userId);
     if (!target) return cb({ error: 'User not found' });
     if (target.id === socket.user.id) return cb({ error: 'Use Settings → Account to change your own password' });
+
+    // MFA gate (#5300 hardening): admin reset is a powerful escalation path
+    // (admin learns user's new login secret), so we require the target to
+    // have TOTP 2FA enabled. This way the temp password alone is not enough
+    // to take over the account — the attacker (or rogue admin) would also
+    // need the TOTP device. Without this, an admin with reset enabled could
+    // silently impersonate any user.
+    if (!target.totp_secret || !target.totp_enabled) {
+      return cb({ error: 'Target user must enable two-factor authentication before an admin can reset their password (security requirement).', code: 'mfa_required' });
+    }
 
     // 16 hex chars, grouped as XXXX-XXXX-XXXX-XXXX for readability.
     const raw = crypto.randomBytes(8).toString('hex').toUpperCase();
@@ -711,7 +721,14 @@ module.exports = function register(socket, ctx) {
       return cb({ error: 'Server error' });
     }
     const newPwv = (target.password_version || 1) + 1;
-    db.prepare('UPDATE users SET password_hash = ?, password_version = ?, must_change_password = 1 WHERE id = ?')
+    // DM-preservation escape hatch (#5300): write the temp hash to
+    // `temp_password_hash` instead of overwriting `password_hash`. Login
+    // accepts either hash; logging in with the original password silently
+    // clears the temp hash and the must_change_password flag, leaving the
+    // E2E wrap key intact. Only the forced change-password flow (which
+    // only fires when the user logs in with the temp pw) rotates
+    // `password_hash`, at which point DM history becomes unrecoverable.
+    db.prepare('UPDATE users SET temp_password_hash = ?, password_version = ?, must_change_password = 1 WHERE id = ?')
       .run(hash, newPwv, target.id);
 
     if (typeof logAudit === 'function') {

@@ -102,6 +102,10 @@ _showUserGearMenu(anchorEl, userId, username) {
   if (canMod) items += `<button class="gear-menu-item" data-action="mute">🔇 ${t('users.gear_menu.mute')}</button>`;
   if (isAdmin) items += `<button class="gear-menu-item gear-menu-danger" data-action="ban">⛔ ${t('users.gear_menu.ban')}</button>`;
   if (isAdmin) items += `<button class="gear-menu-item gear-menu-danger" data-action="delete-user">🗑️ ${t('users.gear_menu.delete_user')}</button>`;
+  // Admin password reset (#5300): gated on server setting AND target is not self.
+  if (isAdmin && this.serverSettings?.admin_password_reset_enabled === 'true' && userId !== this.user?.id) {
+    items += `<button class="gear-menu-item gear-menu-danger" data-action="reset-password">🔑 ${t('users.gear_menu.reset_password') || 'Reset Password'}</button>`;
+  }
   if (isAdmin) items += `<div class="gear-menu-divider"></div><button class="gear-menu-item gear-menu-danger" data-action="transfer-admin">🔑 ${t('users.gear_menu.transfer_admin')}</button>`;
 
   const menu = document.createElement('div');
@@ -135,6 +139,8 @@ _showUserGearMenu(anchorEl, userId, username) {
         this._openGearMenuChannelPicker(userId, username, inviteChannels);
       } else if (action === 'transfer-admin') {
         this._confirmTransferAdmin(userId, username);
+      } else if (action === 'reset-password') {
+        this._confirmAdminResetPassword(userId, username);
       } else {
         this._showAdminActionModal(action, userId, username);
       }

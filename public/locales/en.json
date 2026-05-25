@@ -565,6 +565,7 @@
       "mute": "Mute",
       "ban": "Ban",
       "delete_user": "Delete User",
+      "reset_password": "Reset Password",
       "transfer_admin": "Transfer Admin"
     },
     "voice_menu": {

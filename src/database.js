@@ -173,6 +173,22 @@ function initDatabase() {
     db.exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0");
   }
 
+  // ── Migration: temp_password_hash for admin-reset DM preservation (#5300) ──
+  // When an admin resets a user's password we now write the temp password's
+  // bcrypt hash to this column instead of overwriting `password_hash`. Login
+  // accepts EITHER hash. This gives the user an escape hatch: if they still
+  // remember their original password they can log in with it and the temp
+  // hash is silently cleared, cancelling the reset and preserving their
+  // E2E DM wrap key (which is PBKDF2-derived from the password). Only if
+  // the user logs in with the temp pw does the forced change-password
+  // flow rotate `password_hash`, which is when DM history becomes
+  // unrecoverable on their side.
+  try {
+    db.prepare("SELECT temp_password_hash FROM users LIMIT 0").get();
+  } catch {
+    db.exec("ALTER TABLE users ADD COLUMN temp_password_hash TEXT DEFAULT NULL");
+  }
+
   // ── Migration: edited_at column on messages ───────────
   try {
     db.prepare("SELECT edited_at FROM messages LIMIT 0").get();
