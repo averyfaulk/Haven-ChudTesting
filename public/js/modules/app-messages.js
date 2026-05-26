@@ -677,7 +677,11 @@ _createMessageEl(msg, prevMsg) {
     // Message links contain the DM channel code - never expose them in DM context.
     ...(isDmContext ? [] : [{ key: 'copy-link', html: `<button data-action="copy-link" title="${t('msg_toolbar.copy_link') || 'Copy link to message'}">${iLink}</button>` }])
   ];
-  const canPin = this.user.isAdmin || this._canModerate();
+  // Gate pin/unpin on the explicit `pin_message` permission so granting it via
+  // a role (without making the user a moderator) actually shows the button.
+  // Previously gated on _canModerate() (level >= 25), which made the role
+  // toggle look broken because users with only `pin_message` saw nothing.
+  const canPin = this.user.isAdmin || this._hasPerm('pin_message');
   const canArchive = this.user.isAdmin || this._hasPerm('archive_messages');
   const canDelete = msg.user_id === this.user.id || this.user.isAdmin || this._canModerate();
   if (canPin) {
