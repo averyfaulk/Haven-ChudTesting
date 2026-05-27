@@ -102,6 +102,51 @@ _setupSocketListeners() {
     this.socket.emit('visibility-change', { visible: !document.hidden });
     this.socket.emit('get-channels');
     this.socket.emit('get-server-settings');
+
+    // (#5391) Watchdog: if the socket connects but channels-list never
+    // arrives, the session is in a broken state that the auth middleware
+    // didn't catch (DB hiccup mid-handshake, getEnrichedChannels throwing,
+    // user row out of sync, etc.). The visible symptom is the sidebar
+    // sitting empty forever and the user not knowing whether to refresh.
+    // After 10 s of silence, fall back to a deterministic HTTP token check
+    // and either retry once or kick to /login. Cleared as soon as
+    // channels-list lands (see the channels-list handler below).
+    if (this._channelsWatchdog) clearTimeout(this._channelsWatchdog);
+    this._channelsListGotResponse = false;
+    this._channelsWatchdog = setTimeout(async () => {
+      if (this._channelsListGotResponse) return;
+      try {
+        const resp = await fetch('/api/auth/validate', {
+          headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('haven_token') || '') }
+        });
+        if (resp.status === 401 || resp.status === 404) {
+          // Token is stale or user row gone — same outcome as a socket
+          // 'Invalid token' / 'Session expired'. Kick to login.
+          localStorage.removeItem('haven_token');
+          localStorage.removeItem('haven_user');
+          localStorage.removeItem('haven_sync_key');
+          window.location.href = '/';
+          return;
+        }
+      } catch {
+        // Network failure — leave it alone, the user can refresh manually.
+        return;
+      }
+      // Token is valid but channels never came. Retry once before giving up.
+      if (!this._channelsListGotResponse && this.socket?.connected) {
+        console.warn('[#5391] channels-list missing after 10s, retrying get-channels');
+        this.socket.emit('get-channels');
+        setTimeout(() => {
+          if (!this._channelsListGotResponse) {
+            // Server clearly can't fulfil get-channels for this session —
+            // a full reload picks up any server-side fix and re-runs the
+            // auth handshake from scratch.
+            console.warn('[#5391] channels-list still missing after retry, forcing reload');
+            window.location.reload();
+          }
+        }, 5000);
+      }
+    }, 10000);
     if (this.currentChannel) {
       this.socket.emit('enter-channel', { code: this.currentChannel });
       // Reset pagination — reconnect replaces message list
@@ -417,6 +462,12 @@ _setupSocketListeners() {
   });
 
   this.socket.on('channels-list', (channels) => {
+    // (#5391) Cancel the channels-not-arriving watchdog
+    this._channelsListGotResponse = true;
+    if (this._channelsWatchdog) {
+      clearTimeout(this._channelsWatchdog);
+      this._channelsWatchdog = null;
+    }
     // Detect if currentChannel's code was rotated while disconnected (stale code).
     // Capture the channel's ID from the old list before overwriting it.
     let rotatedChannelId = null;
