@@ -208,6 +208,17 @@ function initDatabase() {
     db.exec("ALTER TABLE messages ADD COLUMN burning_started_at DATETIME DEFAULT NULL");
   }
 
+  // ── Migration: break_chain flag on messages (#5393) ────
+  // 1 = this message must not visually compact with the previous one
+  // (used by the `/break` slash command and reinforced for persona
+  // messages so different personas under the same account never merge
+  // into a single grouped block).
+  try {
+    db.prepare("SELECT break_chain FROM messages LIMIT 0").get();
+  } catch {
+    db.exec("ALTER TABLE messages ADD COLUMN break_chain INTEGER DEFAULT 0");
+  }
+
   // ── Migration: high_scores table ────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS high_scores (
