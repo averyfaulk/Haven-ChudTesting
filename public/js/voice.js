@@ -74,12 +74,18 @@ class VoiceManager {
     this.screenResolution = savedRes !== null ? parseInt(savedRes, 10) : 1080;  // 0 = source
     this.screenFrameRate = parseInt(localStorage.getItem('haven_screen_fps') || '30', 10) || 30;
 
-    // Bitrate map: resolution → bits/sec  (sensible defaults per resolution)
+    // Bitrate map: resolution → bits/sec  (per-resolution caps for screen-share encoding).
+    // 3.18.1 (#5379): bumped 2-3x because the previous values (1.5 / 3 / 5 Mbps) were
+    // well below what modern home internet can comfortably push, and WebRTC was dropping
+    // framerate to fit inside the cap instead of using the headroom users actually have.
+    // Reference points: YouTube live recommends 4.5-9 Mbps for 1080p60; OBS default for
+    // 1080p60 is 8 Mbps. We sit between "good" and "high" so two-person sessions on
+    // typical broadband stop being framerate-starved.
     this._screenBitrates = {
-      0:    4_000_000,   // 4 Mbps fallback for unconstrained (source)
-      720:  1_500_000,   // 1.5 Mbps
-      1080: 3_000_000,   // 3 Mbps
-      1440: 5_000_000,   // 5 Mbps
+      0:    8_000_000,   // 8 Mbps fallback for unconstrained (source)
+      720:  4_000_000,   // 4 Mbps  (was 1.5)
+      1080: 8_000_000,   // 8 Mbps  (was 3)
+      1440: 14_000_000,  // 14 Mbps (was 5)
     };
 
     this.rtcConfig = {
@@ -945,6 +951,15 @@ class VoiceManager {
 
       this.isScreenSharing = true;
 
+      // 3.18.1 (#5379) — hint the encoder that this is motion content (games,
+      // videos, scrolling). Without this hint, browsers may bias toward
+      // "detail" mode which sacrifices framerate for sharpness, the opposite
+      // of what most screen-share use cases want.
+      try {
+        const vTrack = this.screenStream.getVideoTracks()[0];
+        if (vTrack && 'contentHint' in vTrack) vTrack.contentHint = 'motion';
+      } catch { /* unsupported — ignore */ }
+
       // When user clicks browser "Stop sharing" button
       this.screenStream.getVideoTracks()[0].onended = () => {
         this.stopScreenShare();
@@ -1207,6 +1222,11 @@ class VoiceManager {
   /**
    * Cap the video bitrate on screen-share senders for a given peer connection.
    * Uses RTCRtpSender.setParameters() which is widely supported.
+   *
+   * 3.18.1 (#5379) — also sets `degradationPreference: 'maintain-framerate'` so
+   * the encoder drops resolution before dropping frames when bandwidth gets
+   * tight. Default browser behaviour is `balanced`, which on screen share
+   * tends to chop framerate first (bad for motion content like games/video).
    */
   _applyScreenBitrate(connection, maxBitrate) {
     try {
@@ -1219,6 +1239,12 @@ class VoiceManager {
             params.encodings = [{}];
           }
           params.encodings[0].maxBitrate = maxBitrate;
+          // Per-encoding cap is the primary control; framerate hint also helps
+          // browsers that respect it (Chromium-based ones do).
+          if (this.screenFrameRate) {
+            params.encodings[0].maxFramerate = this.screenFrameRate;
+          }
+          params.degradationPreference = 'maintain-framerate';
           sender.setParameters(params).catch(() => {});
         }
       }

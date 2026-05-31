@@ -11,6 +11,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.18.1] — 2026-05-31
+
+### Fixed
+- **Screen-share framerate and quality cap too conservative (#5379).** The per-resolution bitrate ceiling for screen share was being applied as a hard `RTCRtpSender.encodings[0].maxBitrate` and the previous values (1.5 / 3 / 5 Mbps for 720 / 1080 / 1440) were well below what modern home internet can sustain. With the cap set that low the encoder had no choice but to drop framerate to stay inside it, which produced exactly the symptom users were reporting ("two of us on good internet still have to drop to 720p30 to keep it smooth"). Three changes together: (1) bitrate ceilings bumped to 4 / 8 / 14 Mbps for 720 / 1080 / 1440 (and 8 Mbps for "source"), in line with what OBS and YouTube Live recommend for those resolutions; (2) the screen-share video track now gets `contentHint = 'motion'` so the encoder biases toward smoothness instead of sharpness (correct default for games, videos, and scrolling content, which is what most screen shares are); (3) every screen-share sender now sets `degradationPreference = 'maintain-framerate'` and also pins `encodings[0].maxFramerate` to the user's chosen FPS so when bandwidth does get tight the encoder drops resolution before it drops frames. Net effect: the existing 1080p30 default actually delivers 1080p30, instead of degrading to 720p15ish under the old cap.
+- **Russian translation (`ru.json`) refreshed to match current `en.json` (#5395, thanks @QuiXMaDe).** Pulls in all the keys that landed in 3.17.x and 3.18.0 (server-synced nicknames UI, per-channel default role labels, `/break` command help, admin password reset flow, channel auto-clear timer, sticker size setting, etc.). Validated against `scripts/validate-locales.js` with zero warnings.
+
+---
+
 ## [3.18.0] — 2026-05-27
 
 ### Added
