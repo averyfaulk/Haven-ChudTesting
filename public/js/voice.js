@@ -88,15 +88,46 @@ class VoiceManager {
       1440: 14_000_000,  // 14 Mbps (was 5)
     };
 
+    // Default STUN pool — non-Google by preference. Each entry is tried
+    // simultaneously by the browser during ICE gathering, so listing several
+    // gives natural redundancy. If admin configures their own servers via
+    // /api/ice-servers (typically with a TURN), that takes precedence over
+    // everything here.
+    //
+    // 3.20.1 (#5399): the previous defaults (stun.stunprotocol.org and
+    // stun.nextcloud.com) both went offline. stunprotocol's domain is gone
+    // entirely; nextcloud's STUN stopped responding to binding requests.
+    // Result was every Haven server using default ICE config lost external
+    // WebRTC simultaneously — LAN-to-LAN still worked because host
+    // candidates don't need STUN, but anyone outside the server's subnet
+    // got stuck on "ICE: Connecting...". Defaults below are split into a
+    // preferred non-Google pool plus a Google fallback that only engages
+    // if every preferred server fails the runtime probe.
+    this._stunPreferred = [
+      'stun:stun.cloudflare.com:3478',
+      'stun:stun.relay.metered.ca:80',
+      'stun:global.stun.twilio.com:3478',
+    ];
+    this._stunFallback = [
+      // Last-ditch only. Google is widely reliable but we'd rather not send
+      // our users' NAT-discovery traffic there if we can avoid it.
+      'stun:stun.l.google.com:19302',
+      'stun:stun1.l.google.com:19302',
+    ];
     this.rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.stunprotocol.org:3478' },
-        { urls: 'stun:stun.nextcloud.com:3478' }
-      ]
+      iceServers: this._stunPreferred.map(urls => ({ urls })),
     };
+    // True once /api/ice-servers has returned admin-configured servers; the
+    // probe must not overwrite those.
+    this._adminIceServersLoaded = false;
 
     // Fetch server-provided ICE config (may include TURN)
     this._fetchIceServers();
+
+    // Probe the default pool in the background and prune dead servers so
+    // future RTCPeerConnections don't waste gathering time on them. Only
+    // applies if the admin hasn't configured their own ICE servers.
+    this._probeDefaultStun();
 
     this._setupSocketListeners();
   }
@@ -128,11 +159,90 @@ class VoiceManager {
         const data = await res.json();
         if (data.iceServers && data.iceServers.length) {
           this.rtcConfig.iceServers = data.iceServers;
+          this._adminIceServersLoaded = true;
           console.log(`🧊 ICE servers loaded (${data.iceServers.length} servers${data.iceServers.some(s => String(s.urls).includes('turn:')) ? ', TURN enabled' : ''})`);
         }
       }
     } catch (err) {
       console.warn('Could not fetch ICE servers, using defaults:', err && err.message);
+    }
+  }
+
+  // ── Runtime STUN health probe ──────────────────────────
+  //
+  // Validates each default STUN URL by spinning up a throwaway
+  // RTCPeerConnection and waiting for a srflx (server-reflexive)
+  // candidate, which only appears if the STUN server actually responds.
+  // Survivors replace the iceServers list. If every preferred server is
+  // dead, the Google fallback pool is brought in so users aren't left
+  // with zero working STUN.
+
+  async _probeDefaultStun() {
+    try {
+      // Need a tiny delay so _fetchIceServers can win the race if the
+      // admin has configured their own servers; we don't want to clobber
+      // those with probe results.
+      await new Promise(r => setTimeout(r, 250));
+      if (this._adminIceServersLoaded) return;
+
+      const probeOne = (url, timeoutMs = 2500) => new Promise(resolve => {
+        let settled = false;
+        let pc;
+        const done = ok => {
+          if (settled) return;
+          settled = true;
+          try { pc && pc.close(); } catch { /* ignore */ }
+          resolve({ url, ok });
+        };
+        try {
+          pc = new RTCPeerConnection({ iceServers: [{ urls: url }] });
+          // DataChannel forces ICE gathering even without media tracks.
+          pc.createDataChannel('probe');
+          pc.onicecandidate = e => {
+            if (!e.candidate) return;
+            const cand = e.candidate.candidate || '';
+            if (cand.includes('typ srflx')) done(true);
+          };
+          pc.createOffer()
+            .then(o => pc.setLocalDescription(o))
+            .catch(() => done(false));
+          setTimeout(() => done(false), timeoutMs);
+        } catch {
+          done(false);
+        }
+      });
+
+      const preferred = await Promise.all(this._stunPreferred.map(u => probeOne(u)));
+      const livePreferred = preferred.filter(p => p.ok).map(p => p.url);
+
+      if (this._adminIceServersLoaded) return; // admin won the race after all
+
+      if (livePreferred.length) {
+        this.rtcConfig.iceServers = livePreferred.map(urls => ({ urls }));
+        console.log(`🧊 STUN probe: ${livePreferred.length}/${this._stunPreferred.length} preferred servers alive (${livePreferred.join(', ')})`);
+        return;
+      }
+
+      // All preferred dead — bring in the fallback pool. Probe those too
+      // so we don't list servers that themselves happen to be unreachable.
+      console.warn('[Voice] All preferred STUN servers failed probe; trying fallback pool.');
+      const fallback = await Promise.all(this._stunFallback.map(u => probeOne(u)));
+      const liveFallback = fallback.filter(p => p.ok).map(p => p.url);
+
+      if (this._adminIceServersLoaded) return;
+
+      if (liveFallback.length) {
+        this.rtcConfig.iceServers = liveFallback.map(urls => ({ urls }));
+        console.warn(`🧊 Using fallback STUN pool (${liveFallback.length} alive): ${liveFallback.join(', ')}`);
+      } else {
+        // Every server we know about is unresponsive. Keep the original
+        // preferred list anyway — peers on the same LAN can still connect
+        // via host candidates and at least one server might come back up
+        // mid-call.
+        console.error('[Voice] All known STUN servers failed probe — external WebRTC will be impaired until an admin configures TURN.');
+      }
+    } catch (err) {
+      console.warn('[Voice] STUN probe failed:', err && err.message);
     }
   }
 

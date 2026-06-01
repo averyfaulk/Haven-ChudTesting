@@ -11,6 +11,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.20.1] — 2026-05-31
+
+### Fixed
+- **Voice and screen-share broken outside local network on servers without TURN (#5399).** Both hardcoded default STUN servers had gone offline (`stun.stunprotocol.org` was decommissioned upstream; `stun.nextcloud.com` stopped responding to binding requests), which left any Haven instance using the default ICE config unable to gather server-reflexive candidates. The visible symptom was LAN-to-LAN voice still working (host candidates don't need STUN) while anyone outside the server's subnet got stuck on "ICE: Connecting…" indefinitely; soundboard and screen-share failed to external users for the same reason. Replaced the defaults with a non-Google preferred pool (Cloudflare, Metered, Twilio) plus a runtime probe that opens a throwaway `RTCPeerConnection` against each default URL and prunes the ones that don't respond with a `srflx` candidate inside ~2.5 seconds. If every preferred server fails the probe, a Google fallback pool is brought in automatically as a last resort. Admin-configured TURN servers (`/api/ice-servers`) continue to take precedence over both defaults and probe results, so anyone running their own TURN is unaffected.
+
+---
+
 ## [3.20.0] — 2026-05-31
 
 ### Added

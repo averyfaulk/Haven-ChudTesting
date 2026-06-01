@@ -1415,12 +1415,12 @@
       </div>
 
       <div class="download-card fade-in">
-        <h2>&#x2B21; Haven Server &mdash; v3.18.0</h2>
+        <h2>&#x2B21; Haven Server &mdash; v3.20.1</h2>
         <p class="download-version">Latest stable release &middot; Windows, macOS &amp; Linux &middot; ~5 MB</p>
 
         <div class="download-btn-group">
-          <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.18.0.zip" class="btn btn-primary download-main">
-            <span class="icon">&#x2B07;</span> Download v3.18.0 (.zip)
+          <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.20.1.zip" class="btn btn-primary download-main">
+            <span class="icon">&#x2B07;</span> Download v3.20.1 (.zip)
           </a>
           <div class="download-alt-links">
             <a href="https://github.com/ancsemi/Haven" target="_blank">&#9965; View on GitHub</a>
@@ -1437,7 +1437,35 @@
           <div class="version-list">
             <div class="version-list-inner">
                             <div class="version-item">
-                <div><span class="v-name">v3.18.0</span><span class="v-tag latest">Latest</span> &mdash; <strong>Server-synced nicknames (#5394):</strong> nicknames now persist server-side so they follow you to new devices and browsers (still private, only you see them). <strong>Per-channel default role (#5389):</strong> Channel Functions &rarr; &ldquo;Default Role&rdquo; picks a server role auto-granted to every current and future member of that channel. <strong>Admin-adjustable max sticker size (#5392)</strong> &mdash; bump the 1 MB ceiling up to 10 MB if you want stickers to double as a GIF library. <strong>New <code>/break</code> slash command + persona-compacting hard-stop (#5393)</strong> so back-to-back persona messages stay visually distinct for everyone. <strong>Channel auto-clear messages timer (#5390)</strong> &mdash; wipe messages on a schedule without deleting the channel itself. Fixes for screen-share reshare ghost tiles, channel-list silence watchdog (#5391), and landing-page emoji encoding.</div>
+                <div><span class="v-name">v3.20.1</span><span class="v-tag latest">Latest</span> &mdash; <strong>Emergency fix for voice / screen-share outside local network (#5399).</strong> Both hardcoded default STUN servers had gone offline (one was decommissioned upstream, the other stopped responding), leaving any Haven instance using the default ICE config unable to connect users across the public internet. Symptom was LAN-to-LAN voice still working while anyone outside the server&rsquo;s subnet got stuck on &ldquo;ICE: Connecting&hellip;&rdquo; and soundboard / screen-share failed to external users. Replaced the defaults with a non-Google preferred pool (Cloudflare, Metered, Twilio) plus a startup health probe that prunes any STUN server that doesn&rsquo;t respond with a server-reflexive candidate within ~2.5 seconds. If every preferred server fails the probe, a Google fallback pool engages automatically. Admin-configured TURN servers continue to take precedence so anyone running their own TURN is unaffected.</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.20.1.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.20.0</span> &mdash; <strong>IP-level bans for moderators.</strong> New <code>ban_ip</code> role permission gates an &ldquo;Also ban recent IP address(es)&rdquo; checkbox in the Ban User modal (up to 5 most-recent IPs per user) and a new <strong>Banned IPs</strong> manage modal under Settings &rarr; Admin &rarr; Members for direct IP ban / unban with a reason. Enforced at both the HTTP layer (30-second cache) and Socket.IO layer; live sockets from a freshly-banned IP are disconnected immediately. Exact-string match in v1 (no CIDR / IPv6 normalization).</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.20.0.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.19.1</span> &mdash; Desktop-only fixes paired with Haven Desktop 1.4.21: Settings checkboxes and keybind recorders are now responsive immediately on opening the modal (previously dead until you clicked the matching left-nav item). Adds two opt-in Debug toggles (&ldquo;Disable GPU vsync&rdquo; and &ldquo;Remove Chromium frame-rate cap&rdquo;) for users hitting Nvidia G-Sync / VRR FPS-drop issues. Both off by default and require restart.</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.19.1.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.19.0</span> &mdash; <strong>Join as Guest (#5381).</strong> Admins can enable a guest-login mode and whitelist specific channels guests are auto-joined to. Guests get a real (temporary) account with a 12-hour token, no DMs, no E2E key derivation, and a visible Guest badge in the member list and message header; the row is cleaned up a few seconds after their last socket disconnects. Plus a fix for per-bot slash-command routing (#5398): bots with the same command name in different channels now route to the right callback URL instead of whichever bot was saved last.</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.19.0.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.18.3</span> &mdash; Desktop shortcut-recorder now shows a specific, actionable toast when a bind fails (&ldquo;install libuiohook&rdquo; vs &ldquo;pick a different combo&rdquo;) instead of a one-size-fits-all message. Pairs with Haven Desktop 1.4.20.</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.18.3.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.18.2</span> &mdash; Thank You / donors modal restructured so the Ko-fi donate button stays pinned at the bottom instead of falling below the fold on shorter screens. The tier lists own the scroll now.</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.18.2.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.18.1</span> &mdash; Screen-share encoder defaults tuned for modern home internet (#5379): bitrate caps raised 2&ndash;3x per resolution, encoder hinted as &ldquo;motion&rdquo; content, and <code>degradationPreference: maintain-framerate</code> set so the encoder drops resolution before chopping frames under bandwidth pressure. Big quality bump for games / video on screen-share.</div>
+                <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.18.1.zip">Download &rarr;</a>
+              </div>
+              <div class="version-item">
+                <div><span class="v-name">v3.18.0</span> &mdash; <strong>Server-synced nicknames (#5394):</strong> nicknames now persist server-side so they follow you to new devices and browsers (still private, only you see them). <strong>Per-channel default role (#5389):</strong> Channel Functions &rarr; &ldquo;Default Role&rdquo; picks a server role auto-granted to every current and future member of that channel. <strong>Admin-adjustable max sticker size (#5392)</strong> &mdash; bump the 1 MB ceiling up to 10 MB if you want stickers to double as a GIF library. <strong>New <code>/break</code> slash command + persona-compacting hard-stop (#5393)</strong> so back-to-back persona messages stay visually distinct for everyone. <strong>Channel auto-clear messages timer (#5390)</strong> &mdash; wipe messages on a schedule without deleting the channel itself. Fixes for screen-share reshare ghost tiles, channel-list silence watchdog (#5391), and landing-page emoji encoding.</div>
                 <a href="https://github.com/ancsemi/Haven/archive/refs/tags/v3.18.0.zip">Download &rarr;</a>
               </div>
               <div class="version-item">
