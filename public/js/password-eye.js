@@ -12,12 +12,16 @@
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) return;
     const css = `
-      .haven-pw-wrap { position: relative; display: block; }
-      .haven-pw-wrap input { padding-right: 36px !important; }
+      .haven-pw-wrap { position: relative; display: block; width: 100%; }
+      /* 3.20.2: width:100% + box-sizing fixes the gap on the login form
+         where the input was collapsing to its intrinsic ~173px and the
+         eye floated several px to the right of it. Padding bumped from
+         36 → 30 to bring the eye visually closer to the field too. */
+      .haven-pw-wrap input { padding-right: 30px !important; width: 100% !important; box-sizing: border-box !important; }
       .haven-pw-eye {
-        position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+        position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
         background: transparent; border: none; cursor: pointer;
-        color: var(--text-muted, #888); padding: 4px; border-radius: 4px;
+        color: var(--text-muted, #888); padding: 2px; border-radius: 4px;
         display: inline-flex; align-items: center; justify-content: center;
         line-height: 0;
       }
