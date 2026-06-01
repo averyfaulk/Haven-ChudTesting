@@ -118,6 +118,11 @@ _setupSocketListeners() {
     this.socket.emit('get-channels');
     this.socket.emit('get-server-settings');
 
+    // (#5399 follow-up) Reconcile per-channel mute prefs with the server
+    // once per session so the server can honor them when fanning out
+    // pushes. Guarded internally — safe to call on every reconnect.
+    this._bootstrapChannelPrefs?.();
+
     // (#5391) Watchdog: if the socket connects but channels-list never
     // arrives, the session is in a broken state that the auth middleware
     // didn't catch (DB hiccup mid-handshake, getEnrichedChannels throwing,

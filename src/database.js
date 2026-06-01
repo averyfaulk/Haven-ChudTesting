@@ -724,6 +724,24 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_fcm_tokens_user ON fcm_tokens(user_id);
   `);
 
+  // ── Migration: per-user channel notification prefs ──────
+  // Before 3.20.2 these lived only in localStorage, which meant the server
+  // had no way to honor them when fanning out web-push / FCM pushes — so
+  // mobile users would get a notification for every message even on
+  // channels they'd explicitly muted (#5399 follow-up, Amnibro report).
+  // Mirroring the mute set to the server lets sendPushNotifications skip
+  // muted recipients before they hit FCM.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_channel_prefs (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      channel_code TEXT NOT NULL,
+      muted INTEGER NOT NULL DEFAULT 0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, channel_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_channel_prefs_user ON user_channel_prefs(user_id);
+  `);
+
   // ── Migration: channel feature toggles & QoL ────────────
   const channelQolCols = [
     { name: 'streams_enabled',    sql: "ALTER TABLE channels ADD COLUMN streams_enabled INTEGER DEFAULT 1" },

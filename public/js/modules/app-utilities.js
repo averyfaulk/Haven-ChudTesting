@@ -2,6 +2,57 @@ export default {
 
 // ── Utilities ─────────────────────────────────────────
 
+/** (3.20.2, #5399 follow-up) Mirror a per-channel mute toggle to the
+ *  server so sendPushNotifications can skip muted recipients. Fire-and-
+ *  forget — localStorage stays the local source of truth and any sync
+ *  failure (offline, server old) just leaves the row uncreated. The
+ *  initial localStorage→server sync happens in _bootstrapChannelPrefs. */
+_syncChannelMutePref(code, muted) {
+  if (!code) return;
+  const tok = localStorage.getItem('haven_token');
+  if (!tok) return;
+  try {
+    fetch('/api/user/channel-prefs/mute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
+      body: JSON.stringify({ code, muted: !!muted }),
+    }).catch(() => { /* best-effort */ });
+  } catch { /* ignore */ }
+},
+
+/** One-shot reconciliation between localStorage and the server-side
+ *  mute list. Server wins for known codes; any local-only entries get
+ *  pushed up via PUT (covers users who had muted channels before this
+ *  feature shipped). Idempotent — guarded by `_channelPrefsSynced`. */
+async _bootstrapChannelPrefs() {
+  if (this._channelPrefsSynced) return;
+  const tok = localStorage.getItem('haven_token');
+  if (!tok) return;
+  this._channelPrefsSynced = true;
+  try {
+    const resp = await fetch('/api/user/channel-prefs', {
+      headers: { 'Authorization': `Bearer ${tok}` },
+    });
+    if (!resp.ok) { this._channelPrefsSynced = false; return; }
+    const { muted: serverMuted = [] } = await resp.json();
+    const local = JSON.parse(localStorage.getItem('haven_muted_channels') || '[]');
+    const union = Array.from(new Set([...serverMuted, ...local]));
+    localStorage.setItem('haven_muted_channels', JSON.stringify(union));
+    // If local had entries the server didn't know about, push the union
+    // back so the next message blast filters correctly.
+    const localOnly = local.filter(c => !serverMuted.includes(c));
+    if (localOnly.length) {
+      fetch('/api/user/channel-prefs/muted', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
+        body: JSON.stringify({ codes: union }),
+      }).catch(() => {});
+    }
+  } catch {
+    this._channelPrefsSynced = false;
+  }
+},
+
 /** Sanitize a CSS color value – only allow hex (#RGB / #RRGGBB), rgb(), hsl(), or CSS variables */
 _safeColor(c, fallback = '') {
   if (typeof c !== 'string') return fallback;

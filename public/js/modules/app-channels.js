@@ -568,9 +568,11 @@ _initDmContextMenu() {
     this._closeDmCtxMenu();
     const muted = JSON.parse(localStorage.getItem('haven_muted_channels') || '[]');
     const idx = muted.indexOf(code);
+    const willBeMuted = idx < 0;
     if (idx >= 0) { muted.splice(idx, 1); this._showToast(t('channels.dm_unmuted'), 'success'); }
     else { muted.push(code); this._showToast(t('channels.dm_muted'), 'success'); }
     localStorage.setItem('haven_muted_channels', JSON.stringify(muted));
+    this._syncChannelMutePref(code, willBeMuted);
   });
 
   // Delete DM
@@ -801,6 +803,7 @@ _createSubPanelTile(ch, isSubbed) {
       this._showToast(t('channels.unsubscribed_from', { name: ch.name }), 'success');
     }
     localStorage.setItem('haven_muted_channels', JSON.stringify(muted));
+    this._syncChannelMutePref(ch.code, !checkbox.checked);
     // Re-render the panel and sidebar
     this._renderSubChannelPanel();
     this._renderChannels();

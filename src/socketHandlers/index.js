@@ -688,6 +688,18 @@ function setupSocketHandlers(io, db, opts = {}) {
         WHERE cm.channel_id = ? AND ps.user_id != ?
       `).all(channelId, senderUserId);
 
+      // 3.20.2 (#5399 follow-up): pull the per-user mute set for this
+      // channel up front so we can skip both web-push AND FCM for anyone
+      // who's muted it. Was previously localStorage-only, which the mobile
+      // app had no visibility into — so muted users still got pushed.
+      let mutedUserIds = new Set();
+      try {
+        const mutedRows = db.prepare(
+          'SELECT user_id FROM user_channel_prefs WHERE channel_code = ? AND muted = 1'
+        ).all(channelCode);
+        mutedUserIds = new Set(mutedRows.map(r => r.user_id));
+      } catch { /* table may not exist on a brand-new fresh schema race; skip */ }
+
       // Detect E2E encrypted envelope — don't leak ciphertext in notifications
       let displayContent = messageContent;
       try {
@@ -704,6 +716,7 @@ function setupSocketHandlers(io, db, opts = {}) {
 
       for (const sub of subs) {
         if (activeUserIds.has(sub.user_id)) continue;
+        if (mutedUserIds.has(sub.user_id)) continue;
         const pushSub = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
         webpush.sendNotification(pushSub, payload).catch((err) => {
           if (err.statusCode === 410 || err.statusCode === 404) {
@@ -718,6 +731,7 @@ function setupSocketHandlers(io, db, opts = {}) {
           WHERE cm.channel_id = ? AND cm.user_id != ?
         `).all(channelId, senderUserId)
           .filter(m => !activeUserIds.has(m.user_id))
+          .filter(m => !mutedUserIds.has(m.user_id))
           .map(m => m.user_id);
 
         if (inactiveMembers.length) {

@@ -309,9 +309,11 @@ _setupUI() {
     this._closeChannelCtxMenu();
     const muted = JSON.parse(localStorage.getItem('haven_muted_channels') || '[]');
     const idx = muted.indexOf(code);
+    const willBeMuted = idx < 0;
     if (idx >= 0) { muted.splice(idx, 1); this._showToast(t('toasts.channel_unmuted'), 'success'); }
     else { muted.push(code); this._showToast(t('toasts.channel_muted'), 'success'); }
     localStorage.setItem('haven_muted_channels', JSON.stringify(muted));
+    this._syncChannelMutePref(code, willBeMuted);
     this._renderChannels();
   });
   // Copy channel link from context menu
