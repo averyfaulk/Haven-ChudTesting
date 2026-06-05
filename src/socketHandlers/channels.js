@@ -2,6 +2,35 @@
 const fs = require('fs');
 const path = require('path');
 const { UPLOADS_DIR, DELETED_ATTACHMENTS_DIR } = require('../paths');
+
+const UPLOAD_PATH_RE = /\/uploads\/((?!deleted-attachments\/)(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+)/g;
+const UPLOAD_PATH_EXACT_RE = /^\/uploads\/((?!deleted-attachments\/)(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+)$/;
+
+function isSafeUploadRelPath(relPath) {
+  if (typeof relPath !== 'string' || !relPath) return false;
+  if (!/^((?!\.\.)(?!\.\/)(?!\/)[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+$/.test(relPath)) return false;
+  const parts = relPath.split('/');
+  if (parts.some(p => !p || p === '.' || p === '..')) return false;
+  return true;
+}
+
+function moveUploadToDeleted(relPath) {
+  if (!isSafeUploadRelPath(relPath)) return;
+  const src = path.join(UPLOADS_DIR, relPath);
+  if (!fs.existsSync(src)) return;
+  let stat;
+  try {
+    stat = fs.statSync(src);
+  } catch {
+    return;
+  }
+  if (!stat.isFile()) return;
+  const dst = path.join(DELETED_ATTACHMENTS_DIR, relPath);
+  try {
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.renameSync(src, dst);
+  } catch { /* file locked or already moved */ }
+}
 const { isString, isInt } = require('./helpers');
 
 module.exports = function register(socket, ctx) {
@@ -1355,24 +1384,24 @@ module.exports = function register(socket, ctx) {
     // scan plaintext message content server-side, and also accept a
     // `data.attachments` list from the client for E2E-encrypted DM
     // messages whose ciphertext we can't read here. (#5299)
-    const safeName = /^[\w\-.]+$/;
     const filenames = new Set();
     try {
       const msgs = db.prepare('SELECT content FROM messages WHERE channel_id = ?').all(channel.id);
-      const uploadRe = /\/uploads\/((?!deleted-attachments)[\w\-.]+)/g;
+      const uploadRe = UPLOAD_PATH_RE;
       for (const row of msgs) {
         const text = row.content || '';
+        uploadRe.lastIndex = 0;
         let m;
         while ((m = uploadRe.exec(text)) !== null) {
-          if (safeName.test(m[1])) filenames.add(m[1]);
+          if (isSafeUploadRelPath(m[1])) filenames.add(m[1]);
         }
       }
     } catch { /* ignore scan errors — best-effort cleanup */ }
     if (Array.isArray(data.attachments)) {
       for (const url of data.attachments) {
         if (typeof url !== 'string') continue;
-        const match = url.match(/^\/uploads\/((?!deleted-attachments)[\w\-.]+)$/);
-        if (match && safeName.test(match[1])) filenames.add(match[1]);
+        const match = url.match(UPLOAD_PATH_EXACT_RE);
+        if (match && isSafeUploadRelPath(match[1])) filenames.add(match[1]);
       }
     }
 
@@ -1385,13 +1414,7 @@ module.exports = function register(socket, ctx) {
     });
     deleteAll(channel.id);
 
-    for (const name of filenames) {
-      const src = path.join(UPLOADS_DIR, name);
-      const dst = path.join(DELETED_ATTACHMENTS_DIR, name);
-      if (fs.existsSync(src)) {
-        try { fs.renameSync(src, dst); } catch { /* file locked or already moved */ }
-      }
-    }
+    for (const name of filenames) moveUploadToDeleted(name);
 
     io.to(`channel:${code}`).emit('channel-deleted', { code });
   });

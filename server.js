@@ -70,6 +70,34 @@ const { initFcm } = require('./src/fcm');
 
 const app = express();
 
+const UPLOAD_PATH_RE = /\/uploads\/((?!deleted-attachments\/)(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+)/g;
+
+function isSafeUploadRelPath(relPath) {
+  if (typeof relPath !== 'string' || !relPath) return false;
+  if (!/^((?!\.\.)(?!\.\/)(?!\/)[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+$/.test(relPath)) return false;
+  const parts = relPath.split('/');
+  if (parts.some(p => !p || p === '.' || p === '..')) return false;
+  return true;
+}
+
+function moveUploadToDeleted(relPath, srcRoot = UPLOADS_DIR) {
+  if (!isSafeUploadRelPath(relPath)) return;
+  const src = path.join(srcRoot, relPath);
+  if (!fs.existsSync(src)) return;
+  let stat;
+  try {
+    stat = fs.statSync(src);
+  } catch {
+    return;
+  }
+  if (!stat.isFile()) return;
+  const dst = path.join(DELETED_ATTACHMENTS_DIR, relPath);
+  try {
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.renameSync(src, dst);
+  } catch { /* file locked or already moved */ }
+}
+
 // Trust proxy configuration — controls how many reverse-proxy hops to trust
 // when reading the real client IP from X-Forwarded-For.
 //
@@ -2674,14 +2702,10 @@ app.delete('/api/webhooks/:token/messages/:messageId', webhookLimiter, (req, res
   }
 
   // Move any uploaded attachments to the deleted folder
-  const uploadRe = /\/uploads\/((?!deleted-attachments)[\w\-.]+)/g;
+  const uploadRe = UPLOAD_PATH_RE;
   let m;
   while ((m = uploadRe.exec(msg.content || '')) !== null) {
-    const src = path.join(uploadDir, m[1]);
-    const dst = path.join(DELETED_ATTACHMENTS_DIR, m[1]);
-    if (fs.existsSync(src)) {
-      try { fs.renameSync(src, dst); } catch { /* file locked or already moved */ }
-    }
+    moveUploadToDeleted(m[1], uploadDir);
   }
 
   // Find channel code for broadcasting
@@ -3844,11 +3868,12 @@ function runAutoCleanup() {
           const exemptMessages = db.prepare(
             "SELECT content FROM messages WHERE channel_id IN (SELECT id FROM channels WHERE cleanup_exempt = 1)"
           ).all();
-          const uploadRe = /\/uploads\/([\w\-.]+)/g;
+          const uploadRe = UPLOAD_PATH_RE;
           for (const row of exemptMessages) {
+            uploadRe.lastIndex = 0;
             let m;
             while ((m = uploadRe.exec(row.content || '')) !== null) {
-              protectedFiles.add(m[1]);
+              if (isSafeUploadRelPath(m[1])) protectedFiles.add(m[1]);
             }
           }
         } catch { /* skip if query fails */ }
@@ -3860,11 +3885,12 @@ function runAutoCleanup() {
             FROM messages m
             WHERE m.id IN (SELECT message_id FROM pinned_messages)
           `).all();
-          const uploadRe = /\/uploads\/([\w\-.]+)/g;
+          const uploadRe = UPLOAD_PATH_RE;
           for (const row of pinnedMessages) {
+            uploadRe.lastIndex = 0;
             let m;
             while ((m = uploadRe.exec(row.content || '')) !== null) {
-              protectedFiles.add(m[1]);
+              if (isSafeUploadRelPath(m[1])) protectedFiles.add(m[1]);
             }
           }
         } catch { /* skip if query fails */ }
@@ -3874,11 +3900,12 @@ function runAutoCleanup() {
           const archivedMessages = db.prepare(
             "SELECT content FROM messages WHERE is_archived = 1"
           ).all();
-          const uploadRe = /\/uploads\/([\w\-.]+)/g;
+          const uploadRe = UPLOAD_PATH_RE;
           for (const row of archivedMessages) {
+            uploadRe.lastIndex = 0;
             let m;
             while ((m = uploadRe.exec(row.content || '')) !== null) {
-              protectedFiles.add(m[1]);
+              if (isSafeUploadRelPath(m[1])) protectedFiles.add(m[1]);
             }
           }
         } catch { /* skip if query fails */ }
@@ -3943,20 +3970,21 @@ function runAutoCleanup() {
           // Move any /uploads/<file> referenced in this DM's messages to
           // deleted-attachments first so file cleanup doesn't lose track.
           const msgs = db.prepare('SELECT content FROM messages WHERE channel_id = ?').all(ch.id);
-          const uploadRe = /\/uploads\/((?!deleted-attachments)[\w\-.]+)/g;
+          const uploadRe = UPLOAD_PATH_RE;
           const seen = new Set();
           for (const m of msgs) {
             if (typeof m.content !== 'string') continue;
+            uploadRe.lastIndex = 0;
             let mm;
-            while ((mm = uploadRe.exec(m.content)) !== null) seen.add(mm[1]);
+            while ((mm = uploadRe.exec(m.content)) !== null) {
+              if (isSafeUploadRelPath(mm[1])) seen.add(mm[1]);
+            }
           }
           if (seen.size) {
             const deletedDir = path.join(UPLOADS_DIR, 'deleted-attachments');
             require('fs').mkdirSync(deletedDir, { recursive: true });
             for (const fn of seen) {
-              const src = path.join(UPLOADS_DIR, fn);
-              if (!require('fs').existsSync(src)) continue;
-              try { require('fs').renameSync(src, path.join(deletedDir, fn)); } catch {}
+              moveUploadToDeleted(fn, UPLOADS_DIR);
             }
           }
           // Delete the channel — cascades to messages + read_positions +

@@ -683,6 +683,7 @@ _createMessageEl(msg, prevMsg) {
   const iDelete = iconPair('🗑️', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14" stroke-width="1.8" stroke-linecap="round"></path><path d="M9 7V5h6v2" stroke-width="1.8" stroke-linecap="round"></path><path d="M7 7l1 12h8l1-12" stroke-width="1.8" stroke-linejoin="round"></path></svg>');
   const iLink = iconPair('🔗', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>');
   const iMore = iconPair('⋯', '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.6" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle><circle cx="18" cy="12" r="1.6" fill="currentColor" stroke="none"></circle></svg>');
+  const canShareLink = !isDmContext && this._canShareChannelLink?.(this.currentChannel);
 
   const toolbarActions = [
     { key: 'react', html: `<button data-action="react" title="${t('msg_toolbar.react')}">${iReact}</button>` },
@@ -693,7 +694,7 @@ _createMessageEl(msg, prevMsg) {
     // also reject DM channels as a defence in depth.
     ...(isDmContext ? [] : [{ key: 'thread', html: `<button data-action="thread" title="Thread">${iThread}</button>` }]),
     // Message links contain the DM channel code - never expose them in DM context.
-    ...(isDmContext ? [] : [{ key: 'copy-link', html: `<button data-action="copy-link" title="${t('msg_toolbar.copy_link') || 'Copy link to message'}">${iLink}</button>` }])
+    ...(canShareLink ? [{ key: 'copy-link', html: `<button data-action="copy-link" title="${t('msg_toolbar.copy_link') || 'Copy link to message'}">${iLink}</button>` }] : [])
   ];
   // Gate pin/unpin on the explicit `pin_message` permission so granting it via
   // a role (without making the user a moderator) actually shows the button.

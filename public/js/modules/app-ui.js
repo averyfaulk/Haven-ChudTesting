@@ -320,6 +320,11 @@ _setupUI() {
   document.querySelector('#channel-ctx-menu [data-action="copy-channel-link"]')?.addEventListener('click', () => {
     const code = this._ctxMenuChannel;
     if (!code) return;
+    if (!this._canShareChannelLink?.(code)) {
+      this._closeChannelCtxMenu();
+      this._showToast?.(t('toasts.channel_link_unavailable') || 'Channel not available on this server', 'error');
+      return;
+    }
     this._closeChannelCtxMenu();
     this._copyChannelLink(code);
   });
@@ -4060,9 +4065,21 @@ _setupUI() {
 // CHANNEL & MESSAGE LINKS — copy/share deep-links
 // ═══════════════════════════════════════════════════════
 
+_canShareChannelLink(code) {
+  if (!code) return false;
+  const ch = (this.channels || []).find(c => c.code === code);
+  if (!ch) return false;
+  if (ch.is_dm) return false;
+  return !(ch.is_private || ch.code_visibility === 'private');
+},
+
 /** Copy a Haven-style deep link to a channel (and optionally a message) to the clipboard. */
 _copyChannelLink(code, messageId = null) {
   if (!code) return;
+  if (!this._canShareChannelLink(code)) {
+    this._showToast?.(t('toasts.channel_link_unavailable') || 'Channel not available on this server', 'error');
+    return;
+  }
   const base = `${window.location.origin}/app.html?channel=${encodeURIComponent(code)}`;
   const url = messageId ? `${base}&message=${encodeURIComponent(messageId)}` : base;
   const onCopied = () => {

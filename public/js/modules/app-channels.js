@@ -388,6 +388,11 @@ _openChannelCtxMenu(code, btnEl) {
   if (markReadBtn) markReadBtn.style.display = (this.unreadCounts[code] > 0) ? '' : 'none';
   // Show "Create Sub-channel" for mods OR users with create_channel / manage_sub_channels perm
   const ch = this.channels.find(c => c.code === code);
+  const copyChannelLinkBtn = menu.querySelector('[data-action="copy-channel-link"]');
+  if (copyChannelLinkBtn) {
+    const canShare = !!(ch && !ch.is_dm && !ch.is_private && ch.code_visibility !== 'private');
+    copyChannelLinkBtn.style.display = canShare ? '' : 'none';
+  }
   const createSubBtn = menu.querySelector('[data-action="create-sub-channel"]');
   if (createSubBtn) {
     const canCreateSub = isMod || this._hasPerm('manage_sub_channels') || this._hasPerm('create_channel');

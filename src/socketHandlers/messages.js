@@ -10,6 +10,35 @@ module.exports = function register(socket, ctx) {
           touchVoiceActivity, floodCheck, UPLOADS_DIR, DELETED_ATTACHMENTS_DIR } = ctx;
   const { slowModeTracker } = state;
 
+  const UPLOAD_PATH_RE = /\/uploads\/((?!deleted-attachments\/)(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+)/g;
+  const UPLOAD_PATH_EXACT_RE = /^\/uploads\/((?!deleted-attachments\/)(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+)$/;
+
+  function isSafeUploadRelPath(relPath) {
+    if (typeof relPath !== 'string' || !relPath) return false;
+    if (!/^((?!\.\.)(?!\.\/)(?!\/)[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+$/.test(relPath)) return false;
+    const parts = relPath.split('/');
+    if (parts.some(p => !p || p === '.' || p === '..')) return false;
+    return true;
+  }
+
+  function moveUploadToDeleted(relPath) {
+    if (!isSafeUploadRelPath(relPath)) return;
+    const src = path.join(UPLOADS_DIR, relPath);
+    if (!fs.existsSync(src)) return;
+    let stat;
+    try {
+      stat = fs.statSync(src);
+    } catch {
+      return;
+    }
+    if (!stat.isFile()) return;
+    const dst = path.join(DELETED_ATTACHMENTS_DIR, relPath);
+    try {
+      fs.mkdirSync(path.dirname(dst), { recursive: true });
+      fs.renameSync(src, dst);
+    } catch { /* file locked or already moved */ }
+  }
+
   // ── Get message history ─────────────────────────────────
   socket.on('get-messages', (data) => {
     if (!data || typeof data !== 'object') return;
@@ -568,16 +597,12 @@ module.exports = function register(socket, ctx) {
     }
 
     // Move attachment files to deleted-attachments/ for each deleted message
-    const uploadRe = /\/uploads\/((?!deleted-attachments)[\w\-.]+)/g;
+    const uploadRe = UPLOAD_PATH_RE;
     for (const r of deletable) {
       uploadRe.lastIndex = 0;
       let m;
       while ((m = uploadRe.exec(r.content || '')) !== null) {
-        const src = path.join(UPLOADS_DIR, m[1]);
-        const dst = path.join(DELETED_ATTACHMENTS_DIR, m[1]);
-        if (fs.existsSync(src)) {
-          try { fs.renameSync(src, dst); } catch { /* file locked or already moved */ }
-        }
+        moveUploadToDeleted(m[1]);
       }
       // For E2E DMs the content is ciphertext; honor client-supplied URLs
       // the same way `delete-message` does. (`data.attachmentsByMessage`
@@ -585,16 +610,11 @@ module.exports = function register(socket, ctx) {
       if (channel.is_dm && data.attachmentsByMessage && typeof data.attachmentsByMessage === 'object') {
         const urls = data.attachmentsByMessage[r.id];
         if (Array.isArray(urls)) {
-          const safeName = /^[\w\-.]+$/;
           for (const url of urls) {
             if (typeof url !== 'string') continue;
-            const match = url.match(/^\/uploads\/((?!deleted-attachments)[\w\-.]+)$/);
-            if (!match || !safeName.test(match[1])) continue;
-            const src = path.join(UPLOADS_DIR, match[1]);
-            const dst = path.join(DELETED_ATTACHMENTS_DIR, match[1]);
-            if (fs.existsSync(src)) {
-              try { fs.renameSync(src, dst); } catch { /* ignore */ }
-            }
+            const match = url.match(UPLOAD_PATH_EXACT_RE);
+            if (!match || !isSafeUploadRelPath(match[1])) continue;
+            moveUploadToDeleted(match[1]);
           }
         }
       }
@@ -1052,14 +1072,10 @@ module.exports = function register(socket, ctx) {
       return socket.emit('error-msg', 'Failed to delete message');
     }
 
-    const uploadRe = /\/uploads\/((?!deleted-attachments)[\w\-.]+)/g;
+    const uploadRe = UPLOAD_PATH_RE;
     let m;
     while ((m = uploadRe.exec(msg.content || '')) !== null) {
-      const src = path.join(UPLOADS_DIR, m[1]);
-      const dst = path.join(DELETED_ATTACHMENTS_DIR, m[1]);
-      if (fs.existsSync(src)) {
-        try { fs.renameSync(src, dst); } catch { /* file locked or already moved */ }
-      }
+      moveUploadToDeleted(m[1]);
     }
 
     // For E2E DMs, the message content is encrypted ciphertext, so the
@@ -1068,16 +1084,11 @@ module.exports = function register(socket, ctx) {
     // this for any DM channel — permission gating above already restricts
     // who can delete the message (author or anyone with delete perm). (#5299)
     if (channel.is_dm && Array.isArray(data.attachments)) {
-      const safeName = /^[\w\-.]+$/;
       for (const url of data.attachments) {
         if (typeof url !== 'string') continue;
-        const match = url.match(/^\/uploads\/((?!deleted-attachments)[\w\-.]+)$/);
-        if (!match || !safeName.test(match[1])) continue;
-        const src = path.join(UPLOADS_DIR, match[1]);
-        const dst = path.join(DELETED_ATTACHMENTS_DIR, match[1]);
-        if (fs.existsSync(src)) {
-          try { fs.renameSync(src, dst); } catch { /* ignore */ }
-        }
+        const match = url.match(UPLOAD_PATH_EXACT_RE);
+        if (!match || !isSafeUploadRelPath(match[1])) continue;
+        moveUploadToDeleted(match[1]);
       }
     }
 

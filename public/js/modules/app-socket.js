@@ -566,15 +566,9 @@ _setupSocketListeners() {
       if (known) {
         go();
       } else {
-        // Try to join the channel by code first; if that succeeds the channel
-        // list will update and we can switch. If it fails, fall through silently.
-        this.socket.emit('join-channel', { code: linkChannel }, (res) => {
-          if (res && res.error) {
-            this._showToast?.(t('toasts.channel_link_unavailable') || 'Channel not available on this server', 'error');
-          } else {
-            setTimeout(go, 200);
-          }
-        });
+        // Do not auto-join by deep link. Message/channel links are for members
+        // who already have channel access.
+        this._showToast?.(t('toasts.channel_link_unavailable') || 'Channel not available on this server', 'error');
       }
       window.history.replaceState({}, '', window.location.pathname);
     }
