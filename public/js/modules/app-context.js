@@ -210,6 +210,7 @@ _renderOverlayUserItem(u) {
 
 _setupNotifications() {
   const toggle = document.getElementById('notif-enabled');
+  const voiceActionCuesToggle = document.getElementById('notif-voice-action-cues-enabled');
   const volume = document.getElementById('notif-volume');
   const msgSound = document.getElementById('notif-msg-sound');
   const mentionVolume = document.getElementById('notif-mention-volume');
@@ -223,6 +224,7 @@ _setupNotifications() {
   const leaveSound = document.getElementById('notif-leave-sound');
 
   toggle.checked = this.notifications.enabled;
+  if (voiceActionCuesToggle) voiceActionCuesToggle.checked = this.notifications.voiceActionCuesEnabled;
   volume.value = this.notifications.volume * 100;
   msgSound.value = this.notifications.sounds.message;
   if (sentSound) sentSound.value = this.notifications.sounds.sent;
@@ -253,6 +255,12 @@ _setupNotifications() {
   toggle.addEventListener('change', () => {
     this.notifications.setEnabled(toggle.checked);
   });
+
+  if (voiceActionCuesToggle) {
+    voiceActionCuesToggle.addEventListener('change', () => {
+      this.notifications.setVoiceActionCuesEnabled(voiceActionCuesToggle.checked);
+    });
+  }
 
   volume.addEventListener('input', () => {
     this.notifications.setVolume(volume.value / 100);

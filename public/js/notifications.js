@@ -11,6 +11,7 @@ class NotificationManager {
     this.mentionsEnabled = this._loadPref('haven_notif_mentions_enabled', true);
     this.repliesEnabled = this._loadPref('haven_notif_replies_enabled', true);
     this.dmEnabled = this._loadPref('haven_notif_dm_enabled', true);
+    this.voiceActionCuesEnabled = this._loadPref('haven_notif_voice_action_cues_enabled', true);
     this.volume = this._loadPref('haven_notif_volume', 0.5);
     this.mentionVolume = this._loadPref('haven_notif_mention_volume', 0.8);
     this.replyVolume = this._loadPref('haven_notif_reply_volume', 0.8);
@@ -197,12 +198,18 @@ class NotificationManager {
   /** Play a named tone directly (bypasses event→sound mapping). Used for UI cues. */
   playDirect(toneName) {
     if (this.volume <= 0) return;
+    if (/^(mute|deafen)_(on|off)$/.test(toneName) && !this.voiceActionCuesEnabled) return;
     if (typeof this[toneName] === 'function') this[toneName]();
   }
 
   setEnabled(val) {
     this.enabled = !!val;
     this._savePref('haven_notif_enabled', this.enabled);
+  }
+
+  setVoiceActionCuesEnabled(val) {
+    this.voiceActionCuesEnabled = !!val;
+    this._savePref('haven_notif_voice_action_cues_enabled', this.voiceActionCuesEnabled);
   }
 
   setVolume(val) {

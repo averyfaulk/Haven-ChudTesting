@@ -686,6 +686,8 @@
       "hide_voice_panel_hint": "Das Sprachchat-Panel auf dem Desktop ausblenden. Sprachchat-Nutzer werden weiterhin in Kanalindikatoren angezeigt.",
       "sidebar_voice_controls": "Sprachsteuerung in der Seitenleiste",
       "sidebar_voice_controls_hint": "Stummschalten/Taubschalten-Schaltflächen in der Seitenleiste statt im Sprachchat-Panel-Header anzeigen.",
+      "voice_action_cues": "Stumm-/PTT-Signale",
+      "voice_action_cues_hint": "Kurze Hinweistöne beim Stummschalten, Aufheben der Stummschaltung, Taubschalten oder bei Push-to-Talk in Haven Desktop abspielen.",
       "sound_manager_btn": "Sound Manager",
       "sound_manager_hint": "Töne durchsuchen, Ereignissen zuweisen, Hotkeys festlegen"
     },

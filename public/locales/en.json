@@ -718,6 +718,8 @@
       "hide_voice_panel_hint": "Hide the voice users panel on desktop. Voice users are still shown in channel indicators.",
       "sidebar_voice_controls": "Sidebar Voice Controls",
       "sidebar_voice_controls_hint": "Show mute/deafen buttons in the sidebar instead of the voice panel header.",
+      "voice_action_cues": "Mute / PTT Cues",
+      "voice_action_cues_hint": "Play short cue tones when muting, unmuting, deafening, or using push-to-talk in Haven Desktop.",
       "sound_manager_btn": "Sound Manager",
       "sound_manager_hint": "Browse sounds, assign to events, set hotkeys"
     },

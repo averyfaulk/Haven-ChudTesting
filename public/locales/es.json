@@ -686,6 +686,8 @@
       "hide_voice_panel_hint": "Ocultar el panel de usuarios de voz en escritorio. Los usuarios de voz siguen mostrándose en los indicadores del canal.",
       "sidebar_voice_controls": "Controles de voz en barra lateral",
       "sidebar_voice_controls_hint": "Mostrar botones de silenciar/ensordecer en la barra lateral en lugar del encabezado del panel de voz.",
+      "voice_action_cues": "Señales de silenciar / PTT",
+      "voice_action_cues_hint": "Reproduce tonos cortos al silenciar, reactivar el audio, ensordecer o usar pulsar para hablar en Haven Desktop.",
       "sound_manager_btn": "Administrador de sonidos",
       "sound_manager_hint": "Explorar sonidos, asignar a eventos, configurar teclas rápidas"
     },

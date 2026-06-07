@@ -11,6 +11,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.24.0] — 2026-06-07
+
+### Added
+- **Bulk sticker upload in the Sticker Manager (#5406).** Admins can now select multiple sticker images at once from Settings → Admin → Stickers, have sticker names auto-generated from filenames, and optionally apply one shared pack name to the whole batch. The flow mirrors bulk emoji upload, but respects the separate sticker size limit and stores everything in the existing sticker packs/picker pipeline.
+- **Dedicated Desktop mute/PTT cue toggle (Haven-Desktop #37).** Settings → Sounds now has a new **Mute / PTT Cues** toggle that controls the short tones used for mute, unmute, deafen, and Desktop push-to-talk. This lets Desktop users silence the PTT beeps without muting all other Haven sounds.
+
+### Fixed
+- **Deleting DMs no longer sweeps server stickers into `deleted-attachments/` (#5411).** Sticker files live under the shared `uploads/stickers/` library, not per-message attachments, so cleanup and delete flows now leave them alone instead of treating them like disposable uploads.
+- **Private channel message links are hardened and no longer leak a joinable channel code in the URL (#5408).** Sharing or opening a message link no longer doubles as an uncontrolled invite path into hidden/private channels.
+
 ## [3.23.0] — 2026-06-03
 
 ### Added

@@ -686,6 +686,8 @@
       "hide_voice_panel_hint": "Masque le panneau des utilisateurs vocaux sur bureau. Les utilisateurs vocaux restent visibles dans les indicateurs de salon.",
       "sidebar_voice_controls": "Contrôles vocaux dans la barre latérale",
       "sidebar_voice_controls_hint": "Affiche les boutons muet/sourdine dans la barre latérale plutôt que dans l'en-tête du panneau vocal.",
+      "voice_action_cues": "Signaux muet / PTT",
+      "voice_action_cues_hint": "Joue de courts sons lors du passage en muet, du rétablissement du micro, de la surdité ou de l'utilisation du push-to-talk dans Haven Desktop.",
       "sound_manager_btn": "Gestionnaire de sons",
       "sound_manager_hint": "Parcourir les sons, les assigner aux événements, définir des raccourcis"
     },

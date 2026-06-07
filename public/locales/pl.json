@@ -713,6 +713,8 @@
       "hide_voice_panel_hint": "Ukryj panel użytkowników głosowych na pulpicie. Użytkownicy głosowi są nadal widoczni we wskaźnikach kanałów.",
       "sidebar_voice_controls": "Elementy sterowania głosem na pasku bocznym",
       "sidebar_voice_controls_hint": "Pokaż przyciski wyciszenia/ogłuszenia na pasku bocznym zamiast w nagłówku panelu głosowego.",
+      "voice_action_cues": "Sygnały wyciszenia / PTT",
+      "voice_action_cues_hint": "Odtwarza krótkie dźwięki podczas wyciszania, wyłączania wyciszenia, ogłuszenia lub używania push-to-talk w Haven Desktop.",
       "sound_manager_btn": "Menedżer dźwięków",
       "sound_manager_hint": "Przeglądaj dźwięki, przypisuj do zdarzeń, ustawiaj skróty klawiszowe"
     },

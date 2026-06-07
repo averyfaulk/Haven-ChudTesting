@@ -686,6 +686,8 @@
       "hide_voice_panel_hint": "在桌面上隐藏语音用户面板。语音用户仍显示在频道指示器中。",
       "sidebar_voice_controls": "侧边栏语音控制",
       "sidebar_voice_controls_hint": "在侧边栏而非语音面板标题中显示静音/耳聋按钮。",
+      "voice_action_cues": "静音 / PTT 提示音",
+      "voice_action_cues_hint": "在 Haven Desktop 中静音、取消静音、耳聋或使用按键通话时播放短提示音。",
       "sound_manager_btn": "声音管理器",
       "sound_manager_hint": "浏览声音、分配事件、设置快捷键"
     },
