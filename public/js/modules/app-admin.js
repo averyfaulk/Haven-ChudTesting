@@ -2022,9 +2022,22 @@ _showSlashDropdown(query) {
   // input (works for thread input + DM PiP input + main input). (#5296)
   const host = (this._slashInput && this._slashInput.parentElement) || null;
   if (host && dropdown.parentElement !== host) host.appendChild(dropdown);
-  const filtered = this.slashCommands.filter(c =>
-    c.cmd.startsWith(query)
-  ).slice(0, 10);
+  const q = String(query || '').toLowerCase();
+  const filtered = this.slashCommands
+    .filter(c => String(c.cmd || '').toLowerCase().startsWith(q))
+    // For base queries like "rss", show "/rss add" before plain "/rss" so
+    // discoverable subcommands appear first and users don't keep selecting the
+    // generic base command by accident.
+    .sort((a, b) => {
+      if (!q || q.includes(' ')) return 0;
+      const aCmd = String(a.cmd || '').toLowerCase();
+      const bCmd = String(b.cmd || '').toLowerCase();
+      const aSub = aCmd.startsWith(`${q} `) ? 1 : 0;
+      const bSub = bCmd.startsWith(`${q} `) ? 1 : 0;
+      if (aSub !== bSub) return bSub - aSub;
+      return aCmd.localeCompare(bCmd);
+    })
+    .slice(0, 10);
 
   if (filtered.length === 0 || (query === '' && filtered.length === this.slashCommands.length)) {
     // Show all on empty query

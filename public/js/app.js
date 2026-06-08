@@ -259,12 +259,18 @@ class HavenApp {
       if (!res.ok) return;
       const data = await res.json();
       if (!data.commands || !data.commands.length) return;
-      const builtInCmds = new Set(this.slashCommands.map(c => c.cmd));
+      const knownCmds = new Set(this.slashCommands.map(c => String(c.cmd || '').toLowerCase()));
       for (const bc of data.commands) {
-        if (builtInCmds.has(bc.command)) continue;
+        const cmd = String(bc.command || '').trim();
+        if (!cmd) continue;
+        const key = cmd.toLowerCase();
+        if (knownCmds.has(key)) continue;
+        knownCmds.add(key);
         this.slashCommands.push({
-          cmd: bc.command,
-          args: '<...>',
+          cmd,
+          // Bot commands can have arbitrary args; a hardcoded "<...>" makes
+          // subcommand entries look broken and encourages base-command clicks.
+          args: '',
           desc: `${bc.description || 'Bot command'}  [${bc.bot_name || 'Bot'}]`
         });
       }
