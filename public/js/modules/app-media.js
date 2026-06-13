@@ -420,6 +420,7 @@ _setupSoundManagement() {
         let w = sbStartW + (sbStartX - e.clientX);
         w = Math.max(160, Math.min(420, w));
         sbPanel.style.width = w + 'px';
+        window._updateSbToggleRight?.(); // keep voice/users btn aligned during drag
       });
       document.addEventListener('mouseup', () => {
         if (!sbDragging) return;
@@ -571,12 +572,16 @@ _setupSoundManagement() {
     // Clear any stale hidden state
     localStorage.removeItem('haven_sb_sidebar_hidden');
     // Define the helper now (app-ui and app-admin will also call it)
+    // Soundboard is now the RIGHTMOST panel. The soundboard toggle btn stays at
+    // CSS right:0 always. When the soundboard panel is open, the voice/users
+    // collapse btn needs to shift left so it sits on the left edge of the
+    // soundboard panel (= the right edge of the voice/users panel).
     window._updateSbToggleRight = () => {
-      const btn = document.getElementById('sb-sidebar-toggle-btn');
-      if (!btn || btn.style.display === 'none') return;
-      const rs = document.getElementById('right-sidebar');
-      const rw = rs ? (rs.classList.contains('collapsed') ? 0 : (parseInt(rs.style.width) || 260)) : 260;
-      btn.style.right = rw + 'px';
+      const panel = document.getElementById('sb-sidebar-panel');
+      const isOpen = panel && !panel.classList.contains('sb-hidden');
+      const sbWidth = isOpen ? (parseInt(panel.style.width) || 220) : 0;
+      const voiceBtn = document.getElementById('sidebar-toggle-btn');
+      if (voiceBtn) voiceBtn.style.right = sbWidth + 'px';
     };
     window._updateSbToggleRight();
   }

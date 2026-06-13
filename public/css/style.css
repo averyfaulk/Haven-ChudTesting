@@ -4998,8 +4998,8 @@ details.sound-section:not([open]) .sound-section-label::before {
 .sidebar-collapse-btn {
   position: fixed;
   right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 72px;          /* near top — where the voice panel header sits */
+  transform: none;
   width: 20px;
   height: 36px;
   display: flex;
@@ -11948,12 +11948,12 @@ video:-webkit-full-screen {
   max-height: none;
   overflow-y: auto;
 }
-/* Soundboard sidebar toggle button — fixed, tracks left edge of right sidebar */
+/* Soundboard sidebar toggle button — fixed, always at the far right edge */
 .sb-sidebar-toggle-btn {
   position: fixed;
-  right: 260px; /* overridden by JS via style.right */
-  top: 50%;
-  transform: translateY(-50%);
+  right: 0;           /* stays at right:0; panel is rightmost so this is always correct */
+  top: 114px;         /* just below the voice/users collapse btn at 72px */
+  transform: none;
   width: 20px;
   height: 36px;
   display: flex;
