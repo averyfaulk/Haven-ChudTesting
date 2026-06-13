@@ -6359,6 +6359,20 @@ select.cfn-select.cfn-input {
   object-fit: contain;
 }
 
+/* Embed / link preview size modes */
+.embed-size-off .link-preview,
+.embed-size-off .link-preview-yt { display: none !important; }
+
+.embed-size-large .link-preview {
+  max-width: 600px;
+}
+.embed-size-large .link-preview-image {
+  width: 120px;
+  height: 120px;
+}
+.embed-size-large .link-preview-title { font-size: 14px; }
+.embed-size-large .link-preview-desc  { -webkit-line-clamp: 3; }
+
 /* Image lightbox overlay */
 .image-lightbox {
   position: fixed;

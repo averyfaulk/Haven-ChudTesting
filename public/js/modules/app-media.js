@@ -2019,6 +2019,35 @@ _applyImageMode(mode) {
   document.body.classList.toggle('image-mode-full', mode === 'full');
 },
 
+// ── Embed / Link Preview Size Picker ──
+
+_setupEmbedSizePicker() {
+  const picker = document.getElementById('embed-size-picker');
+  if (!picker) return;
+
+  const saved = localStorage.getItem('haven-embed-size') || 'normal';
+  this._applyEmbedSize(saved);
+  picker.querySelectorAll('[data-embed-size]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.embedSize === saved);
+  });
+
+  picker.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-embed-size]');
+    if (!btn) return;
+    const mode = btn.dataset.embedSize;
+    this._applyEmbedSize(mode);
+    localStorage.setItem('haven-embed-size', mode);
+    picker.querySelectorAll('[data-embed-size]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+},
+
+_applyEmbedSize(mode) {
+  document.body.classList.remove('embed-size-off', 'embed-size-large');
+  if (mode === 'off') document.body.classList.add('embed-size-off');
+  if (mode === 'large') document.body.classList.add('embed-size-large');
+},
+
 // ── Role Display Picker ──
 
 _setupRoleDisplayPicker() {

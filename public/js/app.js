@@ -200,6 +200,7 @@ class HavenApp {
     this._setupFontSizePicker();
     this._setupEmojiSizePicker();
     this._setupImageModePicker();
+    this._setupEmbedSizePicker();
     this._setupRoleDisplayPicker();
     this._setupToolbarIconPicker();
     this._setupDebugSection();

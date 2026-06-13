@@ -5,9 +5,9 @@ const { DATA_DIR, DB_PATH, ENV_PATH, CERTS_DIR, UPLOADS_DIR } = require('./src/p
 const nodeMajor = parseInt(process.versions.node.split('.')[0], 10);
 if (nodeMajor < 18 || nodeMajor >= 24) {
   console.error(`\n  Haven requires Node.js 18-22. You have v${process.versions.node}.`);
-  console.error('  better-sqlite3 does not ship prebuilt binaries for Node 24+,');
-  console.error('  so npm install will fail without C++ build tools.');
-  console.error('  Install Node 22 LTS: https://nodejs.org/\n');
+  console.error('  If you installed Node.js from nodejs.org, make sure you picked the');
+  console.error('  LTS version (v22.x), not the "Current" version (v24/26+).');
+  console.error('  LTS download: https://nodejs.org/en/download (choose "LTS")\n');
   process.exit(1);
 }
 
