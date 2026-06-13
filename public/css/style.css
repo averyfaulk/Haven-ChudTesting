@@ -11853,6 +11853,23 @@ video:-webkit-full-screen {
   overflow: hidden;
   box-shadow: -4px 0 16px rgba(0,0,0,0.25);
 }
+/* Resize handle on the left edge */
+.sb-sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.15s;
+}
+.sb-sidebar-resize-handle:hover,
+.sb-sidebar-resize-handle.dragging {
+  background: var(--accent);
+  opacity: 0.5;
+}
 .sb-sidebar-header {
   display: flex;
   align-items: center;
@@ -11862,6 +11879,7 @@ video:-webkit-full-screen {
   font-size: 13px;
   font-weight: 600;
   flex-shrink: 0;
+  gap: 6px;
 }
 .sb-sidebar-close-btn {
   background: none;
@@ -11874,6 +11892,22 @@ video:-webkit-full-screen {
   transition: color 0.15s;
 }
 .sb-sidebar-close-btn:hover { color: var(--text-primary); }
+/* Collapse/expand arrow button in the header */
+.sb-sidebar-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s, transform 0.2s;
+  flex-shrink: 0;
+}
+.sb-sidebar-collapse-btn:hover { color: var(--text-primary); }
+/* Collapsed state — hide the body, flip the arrow */
+.sb-sidebar-panel.sb-collapsed .sb-sidebar-body { display: none; }
+.sb-sidebar-panel.sb-collapsed .sb-sidebar-collapse-btn { transform: rotate(180deg); }
 .sb-sidebar-body {
   flex: 1;
   overflow: hidden;
@@ -11887,6 +11921,18 @@ video:-webkit-full-screen {
   flex: 1;
   max-height: none;
   overflow-y: auto;
+}
+/* Sidebar mode toggle row inside the panel */
+.sb-sidebar-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

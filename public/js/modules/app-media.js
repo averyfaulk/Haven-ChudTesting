@@ -395,6 +395,50 @@ _setupSoundManagement() {
     if (p) p.style.display = 'none';
   });
 
+  // Collapse/expand soundboard sidebar body
+  document.getElementById('sb-sidebar-collapse-btn')?.addEventListener('click', () => {
+    const p = document.getElementById('sb-sidebar-panel');
+    if (!p) return;
+    const collapsed = !p.classList.contains('sb-collapsed');
+    p.classList.toggle('sb-collapsed', collapsed);
+    localStorage.setItem('haven_sb_sidebar_collapsed', collapsed ? '1' : '0');
+  });
+
+  // Soundboard sidebar resize handle
+  {
+    const sbPanel = document.getElementById('sb-sidebar-panel');
+    const sbResizeHandle = document.getElementById('sb-sidebar-resize-handle');
+    if (sbPanel && sbResizeHandle) {
+      const savedWidth = localStorage.getItem('haven_sb_sidebar_width');
+      if (savedWidth) sbPanel.style.width = savedWidth + 'px';
+
+      let sbDragging = false, sbStartX = 0, sbStartW = 0;
+      sbResizeHandle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        sbDragging = true;
+        sbStartX = e.clientX;
+        sbStartW = sbPanel.getBoundingClientRect().width;
+        sbResizeHandle.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!sbDragging) return;
+        let w = sbStartW + (sbStartX - e.clientX);
+        w = Math.max(160, Math.min(420, w));
+        sbPanel.style.width = w + 'px';
+      });
+      document.addEventListener('mouseup', () => {
+        if (!sbDragging) return;
+        sbDragging = false;
+        sbResizeHandle.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        localStorage.setItem('haven_sb_sidebar_width', parseInt(sbPanel.style.width));
+      });
+    }
+  }
+
   // Tab switching
   document.querySelectorAll('.sound-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -459,27 +503,35 @@ _setupSoundManagement() {
     });
   }
 
-  // Sidebar layout toggle
-  const sidebarCheckbox = document.getElementById('soundboard-sidebar-mode');
-  if (sidebarCheckbox) {
-    sidebarCheckbox.checked = this._soundboardSidebarMode;
-    sidebarCheckbox.addEventListener('change', (e) => {
-      this._soundboardSidebarMode = e.target.checked;
-      localStorage.setItem('haven_soundboard_sidebar_mode', this._soundboardSidebarMode ? 'true' : 'false');
-      this._renderSoundboard(
-        this._soundboardPip
-          ? (document.getElementById('sb-pip-search')?.value?.trim() || '')
-          : (document.getElementById('soundboard-search')?.value?.trim() || '')
-      );
-      const grids = [document.getElementById('soundboard-grid'), document.getElementById('sb-pip-grid')];
-      grids.forEach(g => {
-        if (g) {
-          if (this._soundboardSidebarMode) g.classList.add('sidebar-mode');
-          else g.classList.remove('sidebar-mode');
-        }
-      });
+  // Sidebar layout toggle — shared handler for all three checkboxes
+  // (modal checkbox, settings page checkbox, and panel inline checkbox)
+  const _applySoundboardSidebarMode = (val) => {
+    this._soundboardSidebarMode = val;
+    localStorage.setItem('haven_soundboard_sidebar_mode', val ? 'true' : 'false');
+    ['soundboard-sidebar-mode', 'soundboard-sidebar-mode-settings', 'soundboard-sidebar-mode-panel'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = val;
     });
-  }
+    this._renderSoundboard(
+      this._soundboardPip
+        ? (document.getElementById('sb-pip-search')?.value?.trim() || '')
+        : (document.getElementById('soundboard-search')?.value?.trim() || '')
+    );
+    const grids = [document.getElementById('soundboard-grid'), document.getElementById('sb-pip-grid')];
+    grids.forEach(g => {
+      if (g) {
+        if (val) g.classList.add('sidebar-mode');
+        else g.classList.remove('sidebar-mode');
+      }
+    });
+  };
+  ['soundboard-sidebar-mode', 'soundboard-sidebar-mode-settings', 'soundboard-sidebar-mode-panel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = this._soundboardSidebarMode;
+      el.addEventListener('change', (e) => _applySoundboardSidebarMode(e.target.checked));
+    }
+  });
 
 
   // Soundboard search
@@ -589,6 +641,13 @@ _toggleSoundboardSidebar() {
     panel.style.display = 'none';
     return;
   }
+  // Restore collapsed state and width
+  panel.classList.toggle('sb-collapsed', localStorage.getItem('haven_sb_sidebar_collapsed') === '1');
+  const savedWidth = localStorage.getItem('haven_sb_sidebar_width');
+  if (savedWidth) panel.style.width = savedWidth + 'px';
+  // Sync the inline panel checkbox
+  const panelCb = document.getElementById('soundboard-sidebar-mode-panel');
+  if (panelCb) panelCb.checked = this._soundboardSidebarMode;
   panel.style.display = 'flex';
   this._renderSoundboardSidebar();
   const search = document.getElementById('sb-sidebar-search');
