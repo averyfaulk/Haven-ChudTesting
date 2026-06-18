@@ -6317,4 +6317,9 @@ _showPersonaEditor(id) {
       editor.remove();
       this._renderPersonasList();
     } catch (err) {
-      this._showToast?.(err.message || 'Sav
+      this._showToast?.(err.message || 'Save failed', 'error');
+    }
+  });
+},
+
+};

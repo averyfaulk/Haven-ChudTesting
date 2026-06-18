@@ -2677,4 +2677,190 @@ _setupModalExpand() {
   // divs, settings headers, etc) without depending on h3 internal flex.
   const _injectModalControls = () => {
     document.querySelectorAll('.modal').forEach(modal => {
-      // Skip promo/cent
+      // Skip promo/centered popups and the media gallery (which has its own
+      // header close button) — they're not regular modals (#5352)
+      if (modal.classList.contains('android-beta-promo') ||
+          modal.classList.contains('desktop-promo') ||
+          modal.classList.contains('donors-modal-box') ||
+          modal.classList.contains('media-gallery-modal')) return;
+      // Idempotent — skip already-injected
+      if (modal.dataset.modalControlsInjected === '1') return;
+      modal.dataset.modalControlsInjected = '1';
+
+      // Settings/activities headers have their own close button — keep it
+      // but inject the expand toggle next to it.
+      const settingsClose = modal.querySelector('.settings-close-btn');
+
+      const expandBtn = document.createElement('button');
+      expandBtn.type = 'button';
+      expandBtn.className = 'modal-expand-btn';
+      expandBtn.title = 'Expand / Restore';
+      expandBtn.textContent = '⛶';
+      expandBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isMax = modal.classList.toggle('modal-maximized');
+        expandBtn.textContent = isMax ? '⊖' : '⛶';
+        expandBtn.title = isMax ? 'Restore size' : 'Expand';
+      });
+
+      // When a settings-style header is present, slot the expand button
+      // directly next to its close button so the two stay aligned on
+      // every viewport size. Otherwise drop both controls into a floating
+      // group at the top-right of the modal.
+      if (settingsClose) {
+        expandBtn.classList.add('modal-expand-btn-inline');
+        settingsClose.parentElement.insertBefore(expandBtn, settingsClose);
+      } else {
+        const group = document.createElement('div');
+        group.className = 'modal-controls';
+        group.appendChild(expandBtn);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'modal-expand-btn';
+        closeBtn.title = 'Close';
+        closeBtn.textContent = '✕';
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const overlay = modal.closest('.modal-overlay');
+          if (overlay) overlay.style.display = 'none';
+          if (modal.classList.contains('modal-maximized')) {
+            modal.classList.remove('modal-maximized');
+            expandBtn.textContent = '⛶';
+            expandBtn.title = 'Expand / Restore';
+          }
+        });
+        group.appendChild(closeBtn);
+        modal.appendChild(group);
+      }
+    });
+  };
+  _injectModalControls();
+  // Re-run if new modals get inserted later (some plugins/lazy templates)
+  this._injectModalControls = _injectModalControls;
+},
+
+/** Show a custom image context menu (Save / Copy / Open in tab) */
+_showImageContextMenu(e, src) {
+  this._hideImageContextMenu();
+  const menu = document.createElement('div');
+  menu.id = 'image-context-menu';
+  menu.className = 'image-context-menu';
+  menu.innerHTML = `
+    <button data-action="save">💾 Save Image</button>
+    <button data-action="copy">📋 Copy Image</button>
+    <button data-action="open">🔗 Open in New Tab</button>
+  `;
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  document.body.appendChild(menu);
+  // Clamp to viewport
+  const rect = menu.getBoundingClientRect();
+  if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+  if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+
+  menu.addEventListener('click', async (ev) => {
+    const action = ev.target.dataset.action;
+    if (action === 'save') {
+      const a = document.createElement('a');
+      a.href = src;
+      a.download = src.split('/').pop().split('?')[0] || 'image';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } else if (action === 'copy') {
+      // Hide the menu immediately so it doesn't sit on screen during
+      // the async fetch + clipboard write. We still control the toast.
+      this._hideImageContextMenu();
+      (async () => {
+        const fetchAsBlob = async () => {
+          const resp = await fetch(src, { credentials: 'same-origin' });
+          if (!resp.ok) throw new Error('fetch ' + resp.status);
+          return await resp.blob();
+        };
+        const toPngBlob = async (blob) => {
+          if (blob.type === 'image/png') return blob;
+          const bitmap = await createImageBitmap(blob);
+          const canvas = document.createElement('canvas');
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          canvas.getContext('2d').drawImage(bitmap, 0, 0);
+          return await new Promise((res, rej) =>
+            canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob null')), 'image/png'));
+        };
+        const blobToDataUrl = (blob) => new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = () => rej(r.error || new Error('FileReader failed'));
+          r.readAsDataURL(blob);
+        });
+
+        // Strategy 1: Electron desktop IPC (most reliable — main process
+        // clipboard has no user-gesture requirement).
+        if (window.havenDesktop?.clipboardWriteImage) {
+          try {
+            const blob = await fetchAsBlob();
+            const png = await toPngBlob(blob);
+            const dataUrl = await blobToDataUrl(png);
+            const res = await window.havenDesktop.clipboardWriteImage(dataUrl);
+            if (res?.ok) { this._showToast('Image copied to clipboard', 'success'); return; }
+            console.warn('[Haven] IPC clipboard write failed:', res?.reason);
+          } catch (err) {
+            console.warn('[Haven] IPC clipboard path errored:', err);
+          }
+        }
+
+        // Strategy 2: web navigator.clipboard.write with promise-based
+        // ClipboardItem (preserves gesture chain across async fetch).
+        try {
+          if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+            throw new Error('Clipboard API unavailable');
+          }
+          const blobPromise = (async () => toPngBlob(await fetchAsBlob()))();
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blobPromise })
+          ]);
+          this._showToast('Image copied to clipboard', 'success');
+          return;
+        } catch (err) {
+          console.error('[Haven] Web clipboard.write failed:', err);
+          // Strategy 3: at least put the URL on the clipboard so the
+          // user has something to paste.
+          try {
+            await navigator.clipboard.writeText(src);
+            this._showToast('Copied image URL (browser blocked image copy)', 'warning');
+            return;
+          } catch (err2) {
+            console.error('[Haven] writeText fallback failed:', err2);
+            this._showToast('Failed to copy image: ' + (err.message || err), 'error');
+          }
+        }
+      })();
+      return;
+    } else if (action === 'open') {
+      window.open(src, '_blank', 'noopener,noreferrer');
+    }
+    this._hideImageContextMenu();
+  });
+
+  // Close on click elsewhere
+  const closer = (ev) => {
+    if (!menu.contains(ev.target)) {
+      this._hideImageContextMenu();
+      document.removeEventListener('click', closer, true);
+      document.removeEventListener('contextmenu', closer, true);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('click', closer, true);
+    document.addEventListener('contextmenu', closer, true);
+  }, 0);
+},
+
+_hideImageContextMenu() {
+  const existing = document.getElementById('image-context-menu');
+  if (existing) existing.remove();
+},
+
+};
