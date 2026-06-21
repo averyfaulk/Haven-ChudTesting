@@ -11,6 +11,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.26.0] — 2026-06-21
+
+### Added
+- **Per-channel Soundboard toggle.** The Channel Functions menu (the ⚙️ panel, admins / `create_channel`) now has a **Soundboard** ON/OFF switch alongside Voice, Text, Streams, Music, and Media. Turning it off for a channel stops anyone from playing soundboard sounds into that channel's voice chat: `_playSoundFile` checks the voice channel's `soundboard_enabled` before routing audio into the VC mix and shows a notice instead. New `soundboard_enabled` column on `channels` (defaults to on), wired through the existing `toggle-channel-permission` handler and `getEnrichedChannels`.
+
+### Fixed
+- **Auto-cleanup was deleting persona avatars and other non-post files (#5423).** The file sweep deleted everything in `uploads/` that wasn't on a hand-maintained allow-list (server icon, user avatars, custom emojis/sounds, webhook avatars, referenced attachments), so any file type nobody remembered to protect got wiped — persona avatars now, server stickers/emojis before that. Cleanup is now inverted: it follows the messages it deletes, relocating their attachments to `deleted-attachments/` (only when no surviving message still references them) and purging that folder by age. The main `uploads/` directory is never scanned, so avatars, persona avatars, emojis, sounds, stickers, and the server icon are safe by default — including future file types.
+- **Sub-channel Rename and Organize ignored the permissions named for them (#5424).** Rename only appeared for moderators (effective level ≥ 25) and Organize (reorder / move / reparent / set category) was gated on the server-wide `create_channel` permission on both the client button and every server handler — so granting `rename_sub_channel` or `manage_sub_channels` did nothing for those actions, while Set Topic and Create Sub-channel worked because they were already tied to their own permissions. Rename and Organize now follow the matching permissions; organizing a parent's sub-channels accepts `manage_sub_channels` scoped to that parent, while top-level / server-structure changes still require `create_channel`.
+- **Non-image attachments queued on their own never sent (#5425).** The non-image upload queue (#5417) only flushed inside `if (hasImages)`, and the empty-send guard only checked for queued images, so a queued PDF/audio/video/etc. with no image alongside it never uploaded — with message text the text sent and the file stayed stuck in the queue; with no text the send returned early and did nothing. The send path now tracks `hasFiles`, lets a file-only message through, and flushes the image and file queues independently.
+- **Late joiners and tile-less viewers couldn't (re)open an active screen share.** Users who joined a voice channel after a screen share had already started, or who had dismissed the stream tile, had no way back into the live stream. They can now reopen any active screen share in the channel.
+- **Screen-share audio could play twice (#5426).** Stream audio was being routed through both a Web Audio gain node and the underlying media element at the same time, doubling it. It now plays through a single path.
+
+### Changed
+- **Haven Desktop download links bumped to v1.4.24** on the landing pages (#5422 hotfix).
+- **Refreshed donor and sponsor credits** from the latest contribution list.
+
 ## [3.25.2] — 2026-06-18
 
 ### Fixed
