@@ -51,6 +51,8 @@ class VoiceManager {
     this.analysers = new Map();     // userId → { analyser, dataArray, interval }
     this.onScreenShareStarted = null; // callback(userId, username) — someone started streaming
     this.onWebcamStatusChange = null; // callback() — webcam started/stopped, re-render user list
+    this.onConnectivityWarning = null; // (#5399) callback(message) — fired when no STUN server responds
+    this._connectivityWarned = false;  // only warn once per session to avoid toast spam
     this.deafenedUsers = new Set();   // userIds we've muted our audio towards
     this._localTalkInterval = null;
     this._noiseGateInterval = null;
@@ -240,6 +242,13 @@ class VoiceManager {
         // via host candidates and at least one server might come back up
         // mid-call.
         console.error('[Voice] All known STUN servers failed probe — external WebRTC will be impaired until an admin configures TURN.');
+        // Surface this to the user instead of leaving them stuck on
+        // "ICE: Connecting..." with no explanation (#5399). LAN calls still
+        // work, so keep it a warning, not a hard error.
+        if (!this._connectivityWarned && typeof this.onConnectivityWarning === 'function') {
+          this._connectivityWarned = true;
+          this.onConnectivityWarning('Voice connection servers (STUN) are unreachable. Calls may only work on your local network until an admin sets STUN/TURN in Settings → Voice & Connectivity.');
+        }
       }
     } catch (err) {
       console.warn('[Voice] STUN probe failed:', err && err.message);

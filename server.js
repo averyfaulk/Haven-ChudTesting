@@ -500,21 +500,45 @@ app.get('/api/ice-servers', (req, res) => {
   const user = token ? verifyToken(token) : null;
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  // STUN_URLS env var: comma-separated list of STUN URIs to override defaults.
+  // Admin-configured STUN/TURN (#5399) live in server_settings and take
+  // precedence over env vars, which in turn override the built-in pool.
+  // Admins can now point at their own servers from Settings → Voice &
+  // Connectivity without touching env vars or redeploying.
+  let dbSettings = {};
+  try {
+    const { getDb } = require('./src/database');
+    const rows = getDb().prepare(
+      "SELECT key, value FROM server_settings WHERE key IN ('stun_urls','turn_url','turn_username','turn_password')"
+    ).all();
+    rows.forEach(r => { dbSettings[r.key] = r.value; });
+  } catch { /* DB not ready — fall back to env/defaults below */ }
+
+  // STUN precedence: admin setting → STUN_URLS env → built-in defaults.
   // 3.20.2 (#5399): old defaults (stun.stunprotocol.org + stun.nextcloud.com)
   // both went offline simultaneously. Mirrors the voice.js client default
-  // pool so any Haven server that hadn't customised STUN_URLS would have
+  // pool so any Haven server that hadn't customised STUN would have
   // returned dead endpoints to its clients here too.
-  const stunUrls = process.env.STUN_URLS
-    ? process.env.STUN_URLS.split(',').map(u => u.trim()).filter(Boolean)
-    : [
-        'stun:stun.cloudflare.com:3478',
-        'stun:stun.relay.metered.ca:80',
-        'stun:global.stun.twilio.com:3478',
-        'stun:stun.l.google.com:19302',
-      ];
+  const adminStun = (dbSettings.stun_urls || '').trim();
+  const stunUrls = adminStun
+    ? adminStun.split(/[\n,]/).map(u => u.trim()).filter(Boolean)
+    : process.env.STUN_URLS
+      ? process.env.STUN_URLS.split(',').map(u => u.trim()).filter(Boolean)
+      : [
+          'stun:stun.cloudflare.com:3478',
+          'stun:stun.relay.metered.ca:80',
+          'stun:global.stun.twilio.com:3478',
+          'stun:stun.l.google.com:19302',
+        ];
   const iceServers = stunUrls.map(urls => ({ urls }));
 
+  // TURN precedence: admin setting (static creds) → env (supports HMAC secret).
+  const adminTurn = (dbSettings.turn_url || '').trim();
+  if (adminTurn) {
+    const u = (dbSettings.turn_username || '').trim();
+    const p = (dbSettings.turn_password || '').trim();
+    if (u && p) iceServers.push({ urls: adminTurn, username: u, credential: p });
+    else iceServers.push({ urls: adminTurn });
+  } else {
   const turnUrl = process.env.TURN_URL;
   if (turnUrl) {
     const turnSecret = process.env.TURN_SECRET;
@@ -535,6 +559,7 @@ app.get('/api/ice-servers', (req, res) => {
       // TURN URL with no auth (uncommon but possible)
       iceServers.push({ urls: turnUrl });
     }
+  }
   }
 
   res.json({ iceServers });

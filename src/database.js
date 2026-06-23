@@ -316,6 +316,12 @@ function initDatabase() {
   insertSetting.run('admin_password_reset_enabled', 'false'); // admin can reset user passwords (#5300), opt-in, defaults off
   insertSetting.run('guests_enabled', 'false');          // (#5381) allow Join-as-Guest on the login page
   insertSetting.run('guest_channels', '');               // (#5381) CSV of channel IDs guests are auto-joined to (empty = none)
+  // (#5399) Voice connectivity. Admin-configurable STUN/TURN, served by
+  // /api/ice-servers. All empty by default = use the built-in STUN pool.
+  insertSetting.run('stun_urls', '');                    // newline/comma separated stun: URIs (empty = built-in defaults)
+  insertSetting.run('turn_url', '');                     // optional turn: URI for relaying through hard NAT
+  insertSetting.run('turn_username', '');                // static TURN username (used when turn_url is set)
+  insertSetting.run('turn_password', '');                // static TURN credential
 
   // Unique server fingerprint — used by the multi-server sidebar to detect "self"
   const crypto = require('crypto');

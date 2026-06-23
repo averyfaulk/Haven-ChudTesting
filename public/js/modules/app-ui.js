@@ -1388,6 +1388,12 @@ _setupUI() {
     if (this._lastVoiceUsers) this._renderVoiceUsers(this._lastVoiceUsers);
   };
 
+  // Surface a STUN/connectivity failure so external-network users aren't left
+  // staring at "ICE: Connecting..." with no clue why (#5399).
+  this.voice.onConnectivityWarning = (msg) => {
+    this._showToast(msg, 'error', null, 12000);
+  };
+
   // Wire up talking indicator
   this.voice.onTalkingChange = (userId, isTalking) => {
     const resolvedId = userId === 'self' ? this.user.id : userId;

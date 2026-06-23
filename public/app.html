@@ -2195,6 +2195,28 @@
           </label>
           <small class="settings-hint" data-i18n="settings.admin.session_duration_hint">How long a login token stays valid before users must sign in again. "Never expire" keeps users logged in until they hit Logout or change their password. Applies to new logins only; existing tokens keep their original expiry until they expire or rotate.</small>
         </div>
+        <div class="admin-settings" id="section-connectivity" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+          <h5 class="settings-section-subtitle">📡 <span data-i18n="settings.admin.connectivity_title">Voice &amp; Connectivity</span></h5>
+          <small class="settings-hint" data-i18n="settings.admin.connectivity_hint">STUN/TURN servers let voice and screen share connect between users on different networks. Leave blank to use Haven's built-in STUN pool. If users outside your local network get stuck on "ICE: Connecting...", set your own servers here.</small>
+          <label class="select-row" style="margin-top:8px; align-items:flex-start">
+            <span data-i18n="settings.admin.stun_urls">STUN servers</span>
+            <textarea id="stun-urls-input" rows="3" class="settings-text-input" placeholder="stun:stun.cloudflare.com:3478&#10;stun:stun.l.google.com:19302" style="flex:1; resize:vertical; font-family:monospace; font-size:12px"></textarea>
+          </label>
+          <small class="settings-hint" data-i18n="settings.admin.stun_urls_hint">One stun: URI per line (or comma separated). Blank = built-in defaults.</small>
+          <label class="select-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.turn_url">TURN server (optional)</span>
+            <input type="text" id="turn-url-input" class="settings-text-input" placeholder="turn:turn.example.com:3478" style="flex:1">
+          </label>
+          <label class="select-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.turn_username">TURN username</span>
+            <input type="text" id="turn-username-input" class="settings-text-input" autocomplete="off" style="flex:1">
+          </label>
+          <label class="select-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.turn_password">TURN password</span>
+            <input type="password" id="turn-password-input" class="settings-text-input" autocomplete="new-password" style="flex:1">
+          </label>
+          <small class="settings-hint" data-i18n="settings.admin.turn_hint">A TURN server relays traffic for users behind strict NATs that STUN alone can't connect. Only needed if some users still can't connect after setting STUN. Username/password apply to static-credential TURN servers.</small>
+        </div>
         <div class="admin-settings" id="section-sounds-admin" style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
           <h5 class="settings-section-subtitle">🔊 <span data-i18n="settings.admin.sounds_title">Custom Sounds</span></h5>
           <small class="settings-hint" data-i18n="settings.admin.sounds_hint">Upload audio files for custom notification sounds</small>
