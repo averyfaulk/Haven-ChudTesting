@@ -769,9 +769,17 @@ _renderVoiceUsers(users, channelCode) {
         this._showStreamTile(`screen-tile-${userId}`, userId);
       } else if (!document.getElementById(`screen-tile-${userId}`)) {
         // No tile at all (e.g. we joined after they went live and their stream
-        // never reached us) — actively ask the sharer to (re)send instead of
-        // doing nothing.
-        if (this.voice) this.voice.requestScreenStream(userId);
+        // never reached us, or we closed our view and the sharer's tile was
+        // since torn down) — actively ask the sharer to (re)send. Arm the
+        // retry watchdog too: a single renegotiate request often loses the
+        // race (the sharer may be mid-signaling-change), which left the viewer
+        // stuck on "Requesting stream…" forever with no second attempt. The
+        // watchdog re-requests a few times until a live video track arrives.
+        // (#5426)
+        if (this.voice) {
+          this.voice.requestScreenStream(userId);
+          this.voice._watchForScreenStream(userId);
+        }
         this._showToast?.(t('voice.requesting_stream'), 'info');
       }
     });
@@ -849,8 +857,11 @@ _showVoiceUserMenu(anchorEl, userId, username) {
         if (hidden) {
           this._showStreamTile(`screen-tile-${userId}`, userId);
         } else if (this.voice) {
-          // No tile yet — ask the sharer to (re)send their stream.
+          // No tile yet — ask the sharer to (re)send their stream, and arm the
+          // retry watchdog so a single dropped renegotiate doesn't strand the
+          // viewer on "Requesting stream…" with no follow-up attempt. (#5426)
           this.voice.requestScreenStream(userId);
+          this.voice._watchForScreenStream(userId);
           this._showToast?.(t('voice.requesting_stream'), 'info');
         }
         this._closeVoiceUserMenu();
