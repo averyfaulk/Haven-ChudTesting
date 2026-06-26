@@ -11,6 +11,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Haven uses [Sema
 
 ---
 
+## [3.28.0] — 2026-06-26
+
+### Added
+- **Admin-only "Hide Channel" to declutter the sidebar (#5409).** Admins can't leave channels (they need access to all of them), so their channel list just keeps growing. Right-click a channel (admin only) to hide it from your own sidebar without touching membership or affecting anyone else. Hidden channels stay fully accessible: an "N hidden channels" bar at the bottom of the list opens a modal to unhide them individually or all at once. Stored per-device in localStorage, like mute. The channel you're currently viewing is never hidden out from under you.
+
+### Fixed
+- **Screen-share audio drifted out of sync over TURN relays (#5426).** Incoming screen-share audio was routed through Haven's Web Audio mixer, which pulls at the AudioContext's fixed clock while WebRTC's jitter buffer adapts to relay jitter — the two clocks drift apart and, after a minute or two on a relayed connection, the audio stutters and desyncs from the video continuously (LAN was unaffected). Native audio playout is now the default, keeping the jitter buffer in charge end to end, so screen-share audio stays in sync. The Web Audio mixer is now an opt-in toggle ("Web Audio mixing for screen-share audio") for the >100% per-stream volume boost; normal 0–100% volume works in the default path.
+- **Custom sounds, emojis, and stickers didn't update live (#5426).** They're uploaded and deleted over HTTP, so other connected clients only saw the change after a full restart. Uploads, deletes, and renames now broadcast a refresh signal and every client reloads the affected library immediately.
+- **Voice could go silent for some peers after a brief disconnect (#5427).** Web clients (Firefox/Edge) reported being dropped from voice and reconnecting audible to some people but silent to others, with nothing self-correcting. On a quick reconnect the existing peer connections are kept, but a now-dead relayed path can keep reporting "connected" while no media flows. After a reconnect while still in voice, Haven now ICE-restarts every peer (a restart repairs both directions of a connection and is near-seamless on healthy links), staggered to avoid a burst of offers.
+- **Reopening a screen share could stick on "Requesting stream…" (#5426).** Closing a stream tile and trying to watch again fired a single request; if it lost a race, the viewer was stranded until they rejoined or restarted. The watch path now uses the same retry watchdog late joiners already use, re-requesting until a live video track arrives.
+- **Sub-channel access via a crafted code or deep link (#5408).** A non-member could paste a sub-channel's code into "Join a Channel" (or open a `?channel=` deep link) and be added directly to that sub-channel, unlocking its full history and posting. Joins by code now require membership of the parent channel, private subs are never granted by code, and rejections reuse the generic "invalid code" error so a code's existence isn't revealed. Existing members are unaffected.
+- **Guests couldn't see the Join Voice button in allowed channels (#5401).** An earlier fix let guests into voice on the server and in `_joinVoice`, but the checks that decide whether the Join Voice button even shows still required `use_voice`, so guests never saw a way in. Those gates (header actions, channel context menu, sidebar double-click) now exempt guests too; the server still enforces membership and per-channel voice settings, so nothing is widened beyond a guest's allowed channels.
+- **Server address in the status bar didn't copy in the desktop app.** `navigator.clipboard.writeText()` fails silently in Electron's BrowserView, so clicking the address did nothing. Added the hidden-textarea `execCommand('copy')` fallback the other copy buttons already use (#182).
+
+### Changed
+- **Full Russian retranslation** from @CUBEEEK (#5421), validated against the English source.
+
 ## [3.27.0] — 2026-06-23
 
 ### Added
