@@ -361,7 +361,7 @@ module.exports = function register(socket, ctx) {
         details: { label, maxUses, expiresAt, channels: channels || 'all' }
       });
     }
-    socket.emit('error-msg', `Invite link created: ${code}`);
+    socket.emit('toast', { message: `Invite link created: ${code}`, type: 'success' });
     _emitInviteCodes();
   });
 
@@ -417,7 +417,7 @@ module.exports = function register(socket, ctx) {
         target_type: 'invite_code', target_name: row.code, details: {}
       });
     }
-    socket.emit('error-msg', `Invite link ${row.code} deleted`);
+    socket.emit('toast', { message: `Invite link ${row.code} deleted`, type: 'success' });
     _emitInviteCodes();
   });
 

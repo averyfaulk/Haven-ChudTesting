@@ -4106,6 +4106,11 @@ _setupUI() {
 
   const _renderInviteCodes = (list) => {
     this._inviteCodes = Array.isArray(list) ? list : [];
+    const countEl = document.getElementById('invite-links-count');
+    if (countEl) {
+      const active = this._inviteCodes.filter(c => c.enabled && !c.is_expired).length;
+      countEl.textContent = this._inviteCodes.length ? `(${active} active / ${this._inviteCodes.length})` : '';
+    }
     const host = document.getElementById('invite-codes-list');
     if (!host) return;
     if (!this._inviteCodes.length) {
@@ -4212,10 +4217,27 @@ _setupUI() {
     const act = btn.dataset.act;
     const ic = (this._inviteCodes || []).find(x => x.id === id);
     if (act === 'copy') {
-      const val = card.querySelector('[data-role="invite-link"]')?.value || '';
+      const input = card.querySelector('[data-role="invite-link"]');
+      const val = input?.value || '';
       if (!val) return;
       const done = () => this._showToast?.('Invite link copied', 'success');
-      (navigator.clipboard?.writeText ? navigator.clipboard.writeText(val).then(done).catch(done) : done());
+      // navigator.clipboard.writeText() rejects (or fails silently in Electron's
+      // BrowserView) when the document isn't focused, so fall back to selecting
+      // the field and execCommand('copy'). Only toast success if a copy worked.
+      const fallback = () => {
+        try {
+          if (input) { input.focus(); input.select(); }
+          const ok = document.execCommand('copy');
+          if (input) input.setSelectionRange(0, 0);
+          if (ok) { done(); return; }
+        } catch { /* fall through */ }
+        this._showToast?.('Press Ctrl+C to copy the selected link', 'info');
+      };
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(val).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
     } else if (act === 'toggle') {
       this.socket.emit('update-invite-code', { id, enabled: ic ? !ic.enabled : true });
     } else if (act === 'delete') {
@@ -4244,6 +4266,25 @@ _setupUI() {
       this.socket.emit('update-invite-code', payload);
       this._showToast?.('Invite link updated', 'success');
     }
+  });
+
+  // Invite Links popout — open/close. Refresh the list and create-form channels
+  // on open so the modal always reflects current state.
+  document.getElementById('open-invite-links-btn')?.addEventListener('click', () => {
+    const modal = document.getElementById('invite-links-modal');
+    if (!modal) return;
+    if (typeof this._renderInviteCreateChannels === 'function') {
+      try { this._renderInviteCreateChannels(true); } catch { /* non-critical */ }
+    }
+    if (this.socket?.connected) { try { this.socket.emit('get-invite-codes'); } catch { /* non-critical */ } }
+    modal.style.display = 'flex';
+  });
+  document.getElementById('close-invite-links-btn')?.addEventListener('click', () => {
+    const modal = document.getElementById('invite-links-modal');
+    if (modal) modal.style.display = 'none';
+  });
+  document.getElementById('invite-links-modal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
   });
 },
 
