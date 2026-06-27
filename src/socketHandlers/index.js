@@ -344,10 +344,15 @@ function setupSocketHandlers(io, db, opts = {}) {
               WHERE cm.channel_id = ?
             `).all(ch.id);
             ch.dm_members = members.map(r => ({ id: r.id, username: r.username }));
-            // Generate display name from other participants
-            const others = members.filter(m => m.id !== userId);
-            ch.name = others.slice(0, 3).map(m => m.username).join(', ')
-              + (others.length > 3 ? ` +${others.length - 3}` : '');
+            // Only auto-generate name if it hasn't been custom-set by user.
+            // Without this guard, broadcastChannelLists() in rename-dm would
+            // overwrite the custom name with the auto-generated member list on
+            // every channel list refresh.
+            if (ch.name === 'Group' || !ch.name) {
+              const others = members.filter(m => m.id !== userId);
+              ch.name = others.slice(0, 3).map(m => m.username).join(', ')
+                + (others.length > 3 ? ` +${others.length - 3}` : '');
+            }
             return; // skip the 1-on-1 DM logic below
           }
 

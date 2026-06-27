@@ -629,14 +629,20 @@ _setupSocketListeners() {
     }
   });
 
-  // Channel renamed — update header if we're in that channel
+  // Channel renamed — update header + sidebar name for all open windows.
+  // For regular channels shows '# name', for DMs/group DMs shows bare name (no # prefix).
   this.socket.on('channel-renamed', (data) => {
+    const ch = this.channels.find(c => c.code === data.code);
+    if (ch) {
+      ch.name = data.name;
+      this._renderChannels();
+    }
     if (data.code === this.currentChannel) {
       const el = document.getElementById('channel-header-name');
-      el.textContent = '# ' + data.name;
+      if (el) el.textContent = (ch && ch.is_dm) ? data.name : '# ' + data.name;
       // Clear scramble cache so the effect picks up the renamed channel
-      delete el.dataset.originalText;
-      el._scrambling = false;
+      delete el?.dataset?.originalText;
+      if (el) el._scrambling = false;
     }
   });
 

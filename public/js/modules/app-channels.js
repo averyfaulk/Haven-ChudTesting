@@ -18,9 +18,14 @@ async switchChannel(code) {
   if (jumpBtn) jumpBtn.classList.remove('visible');
   const channel = this.channels.find(c => c.code === code);
   const isDm = channel && channel.is_dm;
-  const displayName = isDm && channel.dm_target
-    ? `@ ${this._getNickname(channel.dm_target.id, channel.dm_target.username)}`
-    : channel ? `# ${channel.name}` : code;
+  // Group DMs (3+ participants) show name with 👥 icon instead of @user or #channel.
+  // Uses channel.name (custom or auto-generated from member list), falls back to 'Group'.
+  const isGroupDm = isDm && channel && channel.is_group_dm;
+  const displayName = isGroupDm
+    ? `👥 ${channel.name || 'Group'}`
+    : isDm && channel.dm_target
+      ? `@ ${this._getNickname(channel.dm_target.id, channel.dm_target.username)}`
+      : channel ? `# ${channel.name}` : code;
 
   document.getElementById('channel-header-name').textContent = displayName;
   // Clear scramble cache so the effect picks up the new channel name
@@ -776,6 +781,21 @@ _initDmContextMenu() {
     });
   });
 
+  // ── Rename Group DM ──────────────────────────────
+  // Right-click → Rename Group on a group DM prompts for a new name and
+  // emits rename-dm to the server, which persists it + broadcasts to all members.
+  document.querySelector('[data-action="dm-rename-group"]')?.addEventListener('click', async () => {
+    const code = this._dmCtxMenuCode;
+    if (!code) return;
+    this._closeDmCtxMenu();
+    const ch = this.channels.find(c => c.code === code);
+    const currentName = ch ? ch.name : '';
+    const newName = prompt('Rename group conversation:', currentName);
+    if (newName && newName.trim()) {
+      this.socket.emit('rename-dm', { code, name: newName.trim() });
+    }
+  });
+
   // ── Initialize group DM modal ──────────────────────
   document.getElementById('create-group-dm-modal') && this._initGroupDmModal();
 
@@ -792,12 +812,15 @@ _openDmCtxMenu(code, anchorEl, mouseEvent) {
   const menu = this._dmCtxMenuEl;
   if (!menu) return;
 
-  // Show/hide group DM options based on whether this is a group DM
+  // Show/hide group DM options (Add People, Rename Group, Leave Group)
+  // based on whether this is a group DM (3+ participants) vs a 1-on-1 DM.
   const ch = this.channels.find(c => c.code === code);
   const isGroup = ch && ch.is_group_dm;
   const addPeopleBtn = menu.querySelector('[data-action="dm-add-people"]');
+  const renameGroupBtn = menu.querySelector('[data-action="dm-rename-group"]');
   const leaveGroupBtn = menu.querySelector('[data-action="dm-leave-group"]');
   if (addPeopleBtn) addPeopleBtn.style.display = isGroup ? '' : 'none';
+  if (renameGroupBtn) renameGroupBtn.style.display = isGroup ? '' : 'none';
   if (leaveGroupBtn) leaveGroupBtn.style.display = isGroup ? '' : 'none';
 
   // Update mute label

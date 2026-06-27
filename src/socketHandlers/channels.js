@@ -1563,6 +1563,34 @@ module.exports = function register(socket, ctx) {
     }
   });
 
+  // ── Rename group DM ──────────────────────────────────────
+  // Persists the channel name to DB, broadcasts channel lists to all members,
+  // and emits channel-renamed to the DM room so the header updates live.
+  // This is separate from rename-channel because the existing handler
+  // explicitly blocks DMs (SELECT ... WHERE is_dm = 0).
+  socket.on('rename-dm', (data) => {
+    if (!data || typeof data !== 'object') return;
+    const code = typeof data.code === 'string' ? data.code.trim() : '';
+    if (!code || !/^[a-f0-9]{8}$/i.test(code)) return;
+    const name = typeof data.name === 'string' ? data.name.trim() : '';
+    if (!name || name.length === 0 || name.length > 50) {
+      return socket.emit('error-msg', 'Group name must be 1-50 characters');
+    }
+    const channel = db.prepare('SELECT * FROM channels WHERE code = ? AND is_dm = 1').get(code);
+    if (!channel) return socket.emit('error-msg', 'DM not found');
+    const isMember = db.prepare('SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?').get(channel.id, socket.user.id);
+    if (!isMember && !socket.user.isAdmin) return socket.emit('error-msg', 'Not a member');
+    try {
+      db.prepare('UPDATE channels SET name = ? WHERE id = ?').run(name, channel.id);
+      // Re-broadcast channel lists so all members see the new name
+      broadcastChannelLists();
+      io.to(`channel:${code}`).emit('channel-renamed', { code, name });
+    } catch (err) {
+      console.error('Rename DM error:', err);
+      socket.emit('error-msg', 'Failed to rename group');
+    }
+  });
+
   // ── Direct Messages ─────────────────────────────────────
   socket.on('start-dm', (data) => {
     if (!data || typeof data !== 'object') return;
