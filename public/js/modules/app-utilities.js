@@ -2243,7 +2243,9 @@ _setThreadParentHeader(meta = {}) {
 },
 
 _setThreadReply(msgEl, msgId) {
-  const author = msgEl.querySelector('.thread-msg-author')?.textContent || msgEl.dataset.username || 'someone';
+  const author = msgEl.querySelector('.thread-msg-author')?.textContent
+    || this._getNickname?.(parseInt(msgEl.dataset.userId, 10), msgEl.dataset.username)
+    || msgEl.dataset.username || 'someone';
   const rawContent = msgEl.dataset.rawContent || msgEl.querySelector('.thread-msg-content')?.textContent || '';
   const preview = rawContent.length > 70 ? rawContent.substring(0, 70) + '…' : rawContent;
   this._threadReplyingTo = { id: msgId, username: author, content: rawContent };
@@ -2266,7 +2268,9 @@ _clearThreadReply() {
 
 _quoteThreadMessage(msgEl) {
   const rawContent = msgEl.dataset.rawContent || msgEl.querySelector('.thread-msg-content')?.textContent || '';
-  const author = msgEl.querySelector('.thread-msg-author')?.textContent || msgEl.dataset.username || 'someone';
+  const author = msgEl.querySelector('.thread-msg-author')?.textContent
+    || this._getNickname?.(parseInt(msgEl.dataset.userId, 10), msgEl.dataset.username)
+    || msgEl.dataset.username || 'someone';
   const quotedLines = rawContent.split('\n').map(l => `> ${l}`).join('\n');
   const quoteText = `> @${author} wrote:\n${quotedLines}\n`;
 
@@ -2947,9 +2951,12 @@ _appendThreadMessage(msg) {
   el.dataset.rawContent = msg.content;
   el.dataset.userId = msg.user_id;
   el.dataset.time = msg.created_at;
-  // Stash the display name so reply/quote still resolve the author on compact
-  // rows, which don't render a `.thread-msg-author` element.
-  el.dataset.username = displayName;
+  // Stash the raw username + avatar so a compact row can be promoted back to a
+  // full row (with the header restored) if the group head above it is deleted,
+  // and so reply/quote can resolve the author on compact rows that have no
+  // `.thread-msg-author` element.
+  el.dataset.username = msg.username || '';
+  if (msg.avatar) el.dataset.avatar = msg.avatar;
   if (msg.persona_id) el.dataset.personaId = String(msg.persona_id);
   if (threadCompact) {
     const shortTime = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -2992,6 +2999,50 @@ _appendThreadMessage(msg) {
   try { this._decryptE2EFiles?.(el); } catch {}
   try { this._setupVideos?.(el); } catch {}
   container.scrollTop = container.scrollHeight;
+},
+
+// Promote a compact thread reply back to a full row (avatar + author header
+// restored), keeping its existing content/toolbar/reactions. Called when the
+// group head above it is deleted, so the new head still shows who sent it —
+// the thread mirror of `_promoteCompactToFull`.
+_promoteThreadCompactToFull(compactEl) {
+  if (!compactEl) return;
+  const userId = parseInt(compactEl.dataset.userId, 10);
+  const rawUsername = compactEl.dataset.username || t('app.messages.unknown_user');
+  const displayName = this._getNickname?.(userId, rawUsername) || rawUsername;
+  const time = compactEl.dataset.time;
+  const color = this._getUserColor(rawUsername);
+  const initial = (displayName || '?').charAt(0).toUpperCase();
+
+  // Preserve the already-rendered content, toolbar, and reactions.
+  const contentHtml = compactEl.querySelector('.thread-msg-content')?.innerHTML || '';
+  const toolbarHtml = compactEl.querySelector('.thread-msg-toolbar')?.outerHTML || '';
+  const reactionsHtml = compactEl.querySelector('.reactions-row')?.outerHTML || '';
+
+  // Avatar: stored at render time, else the online/member list, else initial.
+  const _pool = (this._lastOnlineUsers || []).concat(this.channelMembers || []);
+  const onlineUser = _pool.find(u => u.id === userId) || null;
+  const avatar = compactEl.dataset.avatar || (onlineUser && onlineUser.avatar) || null;
+  const avatarHtml = avatar
+    ? `<img class="thread-msg-avatar" src="${this._escapeHtml(avatar)}" alt="${initial}">`
+    : `<div class="thread-msg-avatar thread-msg-avatar-initial" style="background:${color}">${initial}</div>`;
+
+  compactEl.classList.remove('thread-compact');
+  compactEl.innerHTML = `
+    <div class="thread-msg-row">
+      ${avatarHtml}
+      <div class="thread-msg-body">
+        <div class="thread-msg-header">
+          <span class="thread-msg-author" style="color:${color}">${this._escapeHtml(displayName)}</span>
+          <span class="thread-msg-time">${this._formatTime(time)}</span>
+          <span class="thread-msg-header-spacer"></span>
+          ${toolbarHtml}
+        </div>
+        <div class="thread-msg-content">${contentHtml}</div>
+        ${reactionsHtml}
+      </div>
+    </div>
+  `;
 },
 
 _updateThreadPreview(parentId, thread) {
